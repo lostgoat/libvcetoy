@@ -16,12 +16,14 @@
 # along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
 
 project(
-    'tutorial',
+    'libvcetoy',
     ['cpp'],
     version : '0.0.1',
     license : 'GPL3',
     meson_version : '>= 0.43'
 )
+
+sdl_dep = dependency('sdl2', version : '>=2.0.0')
 
 libvcetoy_include = include_directories('include')
 

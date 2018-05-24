@@ -30,12 +30,15 @@ clivcetoy_files = files(
 vcetoy_lib = shared_library(
     'vcetoy',
     libvcetoy_files,
-    include_directories : libvcetoy_include
+    include_directories : libvcetoy_include,
+    dependencies : sdl_dep,
 )
 
 executable(
     'vcetoy-cli',
     clivcetoy_files,
     include_directories : libvcetoy_include,
-    link_with : vcetoy_lib
+    dependencies : [ sdl_dep ],
+    link_with : vcetoy_lib,
+    #link_args : '-lSDL2'
 )
