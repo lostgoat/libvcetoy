@@ -16,29 +16,4 @@
 # You should have received a copy of the GNU General Public License
 # along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
 
-# Our library
-libvcetoy_files = files(
-    'hello.cpp'
-)
-
-
-# A simple cli interface
-clivcetoy_files = files(
-    'MiniVk.cpp',
-    'SdlWindow.cpp',
-    'cli.cpp'
-)
-
-vcetoy_lib = shared_library(
-    'vcetoy',
-    libvcetoy_files,
-    include_directories : libvcetoy_include,
-)
-
-executable(
-    'vcetoy-cli',
-    clivcetoy_files,
-    include_directories : [ libvcetoy_include ],
-    dependencies : [ sdl_dep, vulkan_dep, vktools_dep, thread_dep ],
-    link_with : [ vcetoy_lib ],
-)
+subdir('vktools')

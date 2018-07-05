@@ -17,40 +17,15 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <unistd.h>
-#include <signal.h>
+#pragma once
 
-#include <vcetoy/hello.h>
-#include <vcetoy/vulkan.h>
-
-#include "MiniVk.h"
-
-static volatile int keepRunning = 1;
-
-void intHandler(int val)
-{
-    keepRunning = 0;
-}
-
-void RenderLoop()
-{
-    MiniVk miniVk;
-    miniVk.Init();
-
-	float red = 0;	
-	uint64_t frameNum = 0;
-	while ( keepRunning ) {
-		miniVk.BeginScene( red+=0.01, 0, 1, 0 );
-		miniVk.EndScene();
-		printf("frame num: %lu\n", frameNum++ );
-	}
-}
-
-int main(int argc, char **argv)
-{
-	signal(SIGINT, intHandler);
-
-	RenderLoop();
-
-    return 0;
-}
+/**
+ * This file is used to localize all the #define options for the
+ * vulkan include.
+ *
+ * This should avoid include order errors as long as vulkan.h
+ * is not included directly in the project
+ */
+#define VK_USE_PLATFORM_XLIB_KHR
+#define VK_USE_PLATFORM_XCB_KHR
+#include <vulkan/vulkan.h>

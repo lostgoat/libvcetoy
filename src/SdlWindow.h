@@ -17,40 +17,43 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <unistd.h>
-#include <signal.h>
+#pragma once
 
-#include <vcetoy/hello.h>
+#include <string>
+
+#include <SDL2/SDL.h>
 #include <vcetoy/vulkan.h>
 
-#include "MiniVk.h"
-
-static volatile int keepRunning = 1;
-
-void intHandler(int val)
+class SdlWindow
 {
-    keepRunning = 0;
-}
+    private:
+        static const int sDefaultWidth = 640;
+        static const int sDefaultHeight = 640;
+        static constexpr const char* sDefaultName = "vcetoy";
 
-void RenderLoop()
-{
-    MiniVk miniVk;
-    miniVk.Init();
+    public:
+        /**
+         * Constructor
+         */
+        SdlWindow();
 
-	float red = 0;	
-	uint64_t frameNum = 0;
-	while ( keepRunning ) {
-		miniVk.BeginScene( red+=0.01, 0, 1, 0 );
-		miniVk.EndScene();
-		printf("frame num: %lu\n", frameNum++ );
-	}
-}
+        /**
+         * Destructor
+         */
+        ~SdlWindow();
 
-int main(int argc, char **argv)
-{
-	signal(SIGINT, intHandler);
+        /**
+         * Initialize
+         */
+        int Init(VkInstance instance);
 
-	RenderLoop();
+        /**
+         * Get a VkSurface that represents this window
+         */
+        VkSurfaceKHR GetVulkanSurface();
 
-    return 0;
-}
+    private:
+        SDL_Window *mWindow;
+        VkInstance mVkInstance;
+        VkSurfaceKHR mVkSurface;
+};

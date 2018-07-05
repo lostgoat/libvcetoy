@@ -20,11 +20,15 @@ project(
     ['cpp'],
     version : '0.0.1',
     license : 'GPL3',
-    meson_version : '>= 0.43'
+    meson_version : '>= 0.43',
+    default_options : ['cpp_std=c++11']
 )
 
 sdl_dep = dependency('sdl2', version : '>=2.0.0')
+vulkan_dep = dependency('vulkan')
+thread_dep = dependency('threads')
 
 libvcetoy_include = include_directories('include')
 
+subdir('libs')
 subdir('src')
