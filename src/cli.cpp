@@ -23,14 +23,7 @@
 #include <vcetoy/hello.h>
 #include <vcetoy/vulkan.h>
 
-#include "MiniVk.h"
-
-static volatile int keepRunning = 1;
-
-void intHandler(int val)
-{
-    keepRunning = 0;
-}
+#include <minivk/MiniVk.h>
 
 void RenderLoop()
 {
@@ -39,8 +32,12 @@ void RenderLoop()
 
 	float red = 0;	
 	uint64_t frameNum = 0;
-	while ( keepRunning ) {
-		miniVk.BeginScene( red+=0.01, 0, 1, 0 );
+	while ( !miniVk.GetWindow()->ShouldQuit() ) {
+		red += 0.0001;
+		if ( red > 1 )
+			red = 0;
+
+		miniVk.BeginScene( red, 0, 1, 0 );
 		miniVk.EndScene();
 		printf("frame num: %lu\n", frameNum++ );
 	}
@@ -48,9 +45,6 @@ void RenderLoop()
 
 int main(int argc, char **argv)
 {
-	signal(SIGINT, intHandler);
-
 	RenderLoop();
-
     return 0;
 }

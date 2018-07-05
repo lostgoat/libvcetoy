@@ -17,43 +17,24 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <gtest/gtest.h>
 
-#include <string>
+#include <minivk/MiniVk.h>
 
-#include <SDL2/SDL.h>
-#include <vcetoy/vulkan.h>
+class VulkanTest : public ::testing::Test {
+	protected:
+		virtual void SetUp()
+		{
+			ASSERT_EQ( miniVk.Init(), 0 );
+		}
 
-class SdlWindow
-{
-    private:
-        static const int sDefaultWidth = 640;
-        static const int sDefaultHeight = 640;
-        static constexpr const char* sDefaultName = "vcetoy";
+		virtual void TearDown()
+		{
+		}
 
-    public:
-        /**
-         * Constructor
-         */
-        SdlWindow();
-
-        /**
-         * Destructor
-         */
-        ~SdlWindow();
-
-        /**
-         * Initialize
-         */
-        int Init(VkInstance instance);
-
-        /**
-         * Get a VkSurface that represents this window
-         */
-        VkSurfaceKHR GetVulkanSurface();
-
-    private:
-        SDL_Window *mWindow;
-        VkInstance mVkInstance;
-        VkSurfaceKHR mVkSurface;
+		MiniVk miniVk;
 };
+
+TEST_F(VulkanTest, FixtureSetup)
+{ 
+}

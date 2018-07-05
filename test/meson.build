@@ -1,4 +1,3 @@
-
 # Copyright (C) 2018  Valve Corporation.
 
 # This file is part of libvcetoy.
@@ -16,27 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
 
-# Our library
-libvcetoy_files = files(
-    'hello.cpp'
+vcetoytest_files = files (
+    'test.cpp',
 )
 
-
-# A simple cli interface
-clivcetoy_files = files(
-    'cli.cpp'
-)
-
-vcetoy_lib = shared_library(
-    'vcetoy',
-    libvcetoy_files,
+vcetoy_test = executable(
+    'vcetoy_test',
+    vcetoytest_files,
     include_directories : libvcetoy_include,
+    dependencies : [ gtest_dep, minivk_dep ]
 )
 
-executable(
-    'vcetoy-cli',
-    clivcetoy_files,
-    include_directories : [ libvcetoy_include ],
-    dependencies : [ thread_dep, minivk_dep ],
-    link_with : [ vcetoy_lib ],
-)
+test('gtest test', vcetoy_test)

@@ -25,7 +25,7 @@
 #include <vector>
 
 #include <vcetoy/vulkan.h>
-#include "SdlWindow.h"
+#include <minivk/SdlWindow.h>
 
 class MiniVk
 {
@@ -131,4 +131,6 @@ class MiniVk
 		void EndScene();
 		void Blit( VkImage srcImage, VkImageLayout srcLayout, uint32_t srcWidth, uint32_t srcHeight, VkImage targetImage, VkImageLayout targetLayout, uint32_t targetOffsetX, uint32_t targetOffsetY, uint32_t targetWidth, uint32_t targetHeight );
         void ClearImage( VkImage pImage, VkImageLayout eLayout, float flRed, float flGreen, float flBlue, float flAlpha );
+
+		SdlWindow *GetWindow() { return &mSdlWindow; }
 };

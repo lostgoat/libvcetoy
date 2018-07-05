@@ -23,7 +23,7 @@
 #include <util/util.h>
 #include <vcetoy/vulkan.h>
 
-#include "SdlWindow.h"
+#include <minivk/SdlWindow.h>
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -31,6 +31,7 @@ SdlWindow::SdlWindow()
     : mWindow(nullptr)
     , mVkInstance( VK_NULL_HANDLE )
     , mVkSurface( VK_NULL_HANDLE )
+	, mShouldQuit( false )
 {
 }
 
@@ -126,4 +127,31 @@ VkSurfaceKHR SdlWindow::GetVulkanSurface()
 
 error:
     return VK_NULL_HANDLE;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+bool SdlWindow::ShouldQuit()
+{
+	ConsumeEvents();
+	return mShouldQuit;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+void SdlWindow::ConsumeEvents()
+{
+	SDL_Event event;
+
+	while( SDL_PollEvent( &event ) != 0 ) {
+		switch( event.type )
+		{
+		case SDL_QUIT:
+			mShouldQuit = true;
+			break;
+		default:
+			//ignored
+			break;
+		}
+	}
 }
