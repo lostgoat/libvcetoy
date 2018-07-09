@@ -37,11 +37,14 @@ bool VcetContextCreate( VcetCtxHandle *pCtx )
     ret = ctx->Init();
     FailOnTo( !ret, error, "Failed to initialize Vcetcontext\n" );
 
+    FailOnTo( !ctx->IsMvDumpSupported(), error, "MV dump not supported\n" );
+
     *pCtx = reinterpret_cast<VcetCtxHandle>( ctx );
 
     return true;
 
 error:
+    delete ctx;
     return false;
 }
 

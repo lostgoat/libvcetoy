@@ -20,6 +20,7 @@
 libvcetoy_files = files(
     'entrypoints.cpp',
     'VcetContext.cpp',
+    'VcetBo.cpp',
 )
 
 
@@ -31,7 +32,8 @@ clivcetoy_files = files(
 vcetoy_lib = shared_library(
     'vcetoy',
     libvcetoy_files,
-    include_directories : libvcetoy_include,
+    dependencies : [ drm_dep, amdgpu_dep ],
+    include_directories : [ libvcetoy_include ],
 )
 
 vcetoy_dep = declare_dependency(

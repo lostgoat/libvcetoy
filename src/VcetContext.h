@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <libdrm/amdgpu.h>
+
 class VcetContext
 {
     public:
@@ -26,4 +28,12 @@ class VcetContext
         ~VcetContext();
 
         bool Init();
+        bool IsMvDumpSupported();
+
+        amdgpu_device_handle GetDevice() { return mDevice; }
+
+    private:
+        int mDrmFd;
+        amdgpu_device_handle mDevice;
+        struct amdgpu_gpu_info mGpuInfo; 
 };

@@ -31,6 +31,11 @@
  * projects
  */
 
+/**
+ * Align value up to alignment
+ */
+#define ALIGN(value, alignment) (((value) + alignment - 1) & ~(alignment - 1))
+
 namespace util
 {
 class TerminationException : public std::exception

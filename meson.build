@@ -24,6 +24,8 @@ project(
     default_options : ['cpp_std=c++11']
 )
 
+drm_dep     = dependency('libdrm', version : '>=2.4.91')
+amdgpu_dep  = dependency('libdrm_amdgpu', version : '>=2.4.91')
 sdl_dep     = dependency('sdl2', version : '>=2.0.0')
 vulkan_dep  = dependency('vulkan')
 thread_dep  = dependency('threads')
