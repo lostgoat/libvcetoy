@@ -17,47 +17,33 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gtest/gtest.h>
+#pragma once
 
-#include <vcetoy/vcetoy.h>
-#include <minivk/MiniVk.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-class VcetTest : public ::testing::Test {
-    protected:
-		virtual void SetUp()
-		{
-			ASSERT_TRUE( VcetContextCreate( &mCtx ) );
-            ASSERT_NE( mCtx, nullptr );
-		}
+/**
+ * This handle represents a libvcetoy context instance
+ */
+typedef void* VcetCtxHandle;
 
-		virtual void TearDown()
-		{
-            VcetContextDestroy( &mCtx );
-            ASSERT_EQ( mCtx, nullptr );
-		}
+/**
+ * Create a libvcetoy context
+ *
+ * On success, pCtx will be populated with a context handle
+ *
+ * Returns: true on success, false otherwise
+ */
+bool VcetContextCreate( VcetCtxHandle *pCtx );
 
-        VcetCtxHandle mCtx;
+/**
+ * Destroy a libvcetoy context
+ *
+ * Destroys the context referenced by the *pCtx handle
+ */
+void VcetContextDestroy( VcetCtxHandle *pCtx );
 
-};
-
-TEST_F(VcetTest, Sanity)
-{
+#ifdef __cplusplus
 }
-
-class VulkanTest : public ::testing::Test {
-	protected:
-		virtual void SetUp()
-		{
-			ASSERT_EQ( miniVk.Init(), 0 );
-		}
-
-		virtual void TearDown()
-		{
-		}
-
-		MiniVk miniVk;
-};
-
-TEST_F(VulkanTest, Sanity)
-{ 
-}
+#endif

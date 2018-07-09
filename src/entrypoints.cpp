@@ -17,4 +17,41 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-void say_hello();
+#include <stdio.h>
+
+#include <util/util.h>
+#include <vcetoy/vcetoy.h>
+
+#include "VcetContext.h"
+
+#define VCET_CTX( name, ctx ) \
+    VcetContext* name = reinterpret_cast<VcetContext*>(ctx);
+
+bool VcetContextCreate( VcetCtxHandle *pCtx )
+{
+    bool ret;
+
+    VcetContext *ctx = new VcetContext();
+    FailOnTo( !ctx, error, "Failed to allocate VcetContext\n" );
+
+    ret = ctx->Init();
+    FailOnTo( !ret, error, "Failed to initialize Vcetcontext\n" );
+
+    *pCtx = reinterpret_cast<VcetCtxHandle>( ctx );
+
+    return true;
+
+error:
+    return false;
+}
+
+void VcetContextDestroy( VcetCtxHandle *pCtx )
+{
+    if ( !pCtx )
+        return;
+
+    VCET_CTX( ctx, *pCtx );
+    delete ctx;
+
+    *pCtx = nullptr;
+}

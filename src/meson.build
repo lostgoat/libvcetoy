@@ -18,13 +18,14 @@
 
 # Our library
 libvcetoy_files = files(
-    'hello.cpp'
+    'entrypoints.cpp',
+    'VcetContext.cpp',
 )
 
 
 # A simple cli interface
 clivcetoy_files = files(
-    'cli.cpp'
+    'cli.cpp',
 )
 
 vcetoy_lib = shared_library(
@@ -33,10 +34,13 @@ vcetoy_lib = shared_library(
     include_directories : libvcetoy_include,
 )
 
+vcetoy_dep = declare_dependency(
+    link_with : vcetoy_lib,
+    include_directories : libvcetoy_include
+)
+
 executable(
     'vcetoy-cli',
     clivcetoy_files,
-    include_directories : [ libvcetoy_include ],
-    dependencies : [ thread_dep, minivk_dep ],
-    link_with : [ vcetoy_lib ],
+    dependencies : [ thread_dep, minivk_dep, vcetoy_dep ],
 )

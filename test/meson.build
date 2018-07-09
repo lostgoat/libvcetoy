@@ -22,8 +22,7 @@ vcetoytest_files = files (
 vcetoy_test = executable(
     'vcetoy_test',
     vcetoytest_files,
-    include_directories : libvcetoy_include,
-    dependencies : [ gtest_dep, minivk_dep ]
+    dependencies : [ gtest_dep, minivk_dep, vcetoy_dep ]
 )
 
 test('gtest test', vcetoy_test)

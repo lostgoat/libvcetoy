@@ -17,47 +17,25 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gtest/gtest.h>
+#include <util/util.h>
 
-#include <vcetoy/vcetoy.h>
-#include <minivk/MiniVk.h>
+#include "VcetContext.h"
 
-class VcetTest : public ::testing::Test {
-    protected:
-		virtual void SetUp()
-		{
-			ASSERT_TRUE( VcetContextCreate( &mCtx ) );
-            ASSERT_NE( mCtx, nullptr );
-		}
-
-		virtual void TearDown()
-		{
-            VcetContextDestroy( &mCtx );
-            ASSERT_EQ( mCtx, nullptr );
-		}
-
-        VcetCtxHandle mCtx;
-
-};
-
-TEST_F(VcetTest, Sanity)
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+VcetContext::VcetContext()
 {
 }
 
-class VulkanTest : public ::testing::Test {
-	protected:
-		virtual void SetUp()
-		{
-			ASSERT_EQ( miniVk.Init(), 0 );
-		}
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+VcetContext::~VcetContext()
+{
+}
 
-		virtual void TearDown()
-		{
-		}
-
-		MiniVk miniVk;
-};
-
-TEST_F(VulkanTest, Sanity)
-{ 
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetContext::Init()
+{
+    return true;
 }

@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include <vcetoy/hello.h>
+#include <vcetoy/vcetoy.h>
 #include <vcetoy/vulkan.h>
 
 #include <minivk/MiniVk.h>
@@ -30,7 +30,7 @@ void RenderLoop()
     MiniVk miniVk;
     miniVk.Init();
 
-	float red = 0;	
+	float red = 0;
 	uint64_t frameNum = 0;
 	while ( !miniVk.GetWindow()->ShouldQuit() ) {
 		red += 0.0001;

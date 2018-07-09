@@ -17,10 +17,13 @@
  * along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <vcetoy/hello.h>
+#pragma once
 
-void say_hello()
+class VcetContext
 {
-    printf("Hello from libvcetoy\n");
-}
+    public:
+        VcetContext();
+        ~VcetContext();
+
+        bool Init();
+};
