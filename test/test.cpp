@@ -19,6 +19,7 @@
 
 #include <gtest/gtest.h>
 
+#include <util/util.h>
 #include <vcetoy/vcetoy.h>
 #include <minivk/MiniVk.h>
 
@@ -26,8 +27,37 @@ class VcetTest : public ::testing::Test {
     protected:
         static const int kFrameMax = 4;
 
-		virtual void SetUp()
-		{
+        class Frame {
+        public:
+            uint32_t mWidth;
+            uint32_t mHeight;
+            uint64_t mSize;
+            VcetBoHandle mBo;
+
+            void FromBitmap( VcetCtxHandle ctx, const char *path ) {
+                uint8_t *pBoData = nullptr;
+                uint8_t *pFrameData = util::GetNV21Data( path, &mWidth, &mHeight );
+
+                ASSERT_NE( (uint32_t)0, mWidth );
+                ASSERT_NE( (uint32_t)0, mHeight );
+                ASSERT_NE( nullptr, pFrameData );
+
+                // TODO: this might need some alignment?
+                mSize = mWidth * mHeight * 12 / 8;
+                ASSERT_TRUE( VcetBoCreate( ctx, mSize, true, &mBo ) );
+                ASSERT_NE( nullptr, mBo );
+
+                ASSERT_TRUE( VcetBoMap( mBo, &pBoData ) );
+                ASSERT_NE( nullptr, pBoData );
+
+                memcpy( pBoData, pFrameData, mSize );
+
+                delete pFrameData;
+            }
+        };
+
+        virtual void SetUp()
+        {
             mCtx = nullptr;
             mMappableBo = nullptr;
             mUnmappableBo = nullptr;
@@ -41,10 +71,10 @@ class VcetTest : public ::testing::Test {
             ASSERT_NE( mMappableBo, nullptr );
             ASSERT_NE( mUnmappableBo, nullptr );
 
-            for ( int i = 0; i < kFrameMax; ++i )
-            {
-                LoadFrame( i, nullptr, 4096 );
-            }
+            mFrame[0].FromBitmap( mCtx, "frames/001.bmp" );
+            mFrame[1].FromBitmap( mCtx, "frames/002.bmp" );
+            mFrame[2].FromBitmap( mCtx, "frames/003.bmp" );
+            mFrame[3].FromBitmap( mCtx, "frames/pattern.bmp" );
 		}
 
 		virtual void TearDown()
@@ -59,16 +89,10 @@ class VcetTest : public ::testing::Test {
             ASSERT_EQ( mCtx, nullptr );
 		}
 
-        void LoadFrame( int slot, uint8_t *data, uint64_t sizeBytes )
-        {
-            ASSERT_TRUE( VcetBoCreate( mCtx, sizeBytes, true, &mFrame[slot] ) );
-        }
-
         VcetCtxHandle mCtx;
-        VcetBoHandle mFrame[ kFrameMax ];
+        Frame mFrame[ kFrameMax ];
         VcetBoHandle mMappableBo;
         VcetBoHandle mUnmappableBo;
-
 };
 
 class VcetTestParams : public VcetTest,

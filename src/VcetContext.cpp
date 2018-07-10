@@ -69,7 +69,7 @@ bool VcetContext::Init()
 
     err = amdgpu_query_gpu_info( hDevice, &mGpuInfo );
     FailOnTo( err, error, "Failed to query gpu info\n" );
- 
+
     mDevice = hDevice;
 
     return true;

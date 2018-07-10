@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <exception>
 #include <memory>
 
@@ -30,11 +31,6 @@
  * This file contains some helpers that may be useful between different
  * projects
  */
-
-/**
- * Align value up to alignment
- */
-#define ALIGN(value, alignment) (((value) + alignment - 1) & ~(alignment - 1))
 
 namespace util
 {
@@ -128,6 +124,18 @@ std::unique_ptr<T> make_unique(Args&&... args)
  * Get the size of an array
  */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+/**
+ * Align value up to alignment
+ */
+#define ALIGN(value, alignment) (((value) + alignment - 1) & ~(alignment - 1))
+
+/**
+ * Clam value to max
+ */
+#define CLAMP(value, min, max) ((value < min) ? min : ((value > max) ? max : value))
+
+
 //-----------------------------------------------------------------------------
 
 /**
@@ -254,6 +262,154 @@ operator+(util::ScopeGuardOnSuccess, FunctionType&& fn)
 }
 
 #endif
+
+//-----------------------------------------------------------------------------
+
+/**
+ * This section contains utility functions for dealing with images
+ *
+ * Data is returned in a heap pointer that the caller is responsible for deleting.
+ *
+ * Data is in RGBA format
+ *
+ * A very naive implementation
+ *
+ * Returns: pointer to data on success, nullptr on failure
+ */
+static inline uint8_t *GetBmpData( const char *path, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pStrideBytes )
+{
+    static const int kHeaderSize = 54;
+
+    FILE* bmp = nullptr;
+    uint32_t height, width, tmpStride, rgbaStride, offset, bitcount, bpp;
+    uint8_t header[kHeaderSize];
+    uint8_t *tmpData = nullptr, *rgbaData = nullptr;
+    size_t bytesRead = 0;
+
+    FailOnTo( !path, error, "GetBmpData: invalid path\n" );
+    FailOnTo( !pWidth || !pHeight || !pStrideBytes , error, "GetBmpData: invalid parameter\n" );
+
+    bmp = fopen( path, "rb" );
+    FailOnTo( !bmp, error, "GetBmpData: failed to open file %s\n", path );
+
+    // Read image info from header
+    bytesRead = fread(header, sizeof(uint8_t), kHeaderSize, bmp);
+    FailOnTo( bytesRead != kHeaderSize, error, "GetBmpData: bad header\n" );
+
+    // Parse the relevant header info
+    offset = *(uint32_t*)   &header[10];
+    width = *(uint32_t*)    &header[18];
+    height = *(uint32_t*)   &header[22];
+    bitcount = *(uint32_t*) &header[28];
+    bpp = bitcount == 24 ? 3 : 4;
+    tmpStride = ALIGN( width * bpp, 4 );
+
+    tmpData = new uint8_t[ tmpStride * height ];
+    memset( tmpData, 0, sizeof(uint8_t) * tmpStride * height );
+
+    // Get the file data
+    fseek( bmp, offset, SEEK_SET );
+    bytesRead = fread( tmpData, sizeof(uint8_t), tmpStride * height, bmp);
+    FailOnTo( bytesRead != tmpStride * height , error, "GetBmpData: unexpected EOF\n" );
+
+    // Format it to a standard RGBA
+    rgbaStride = ALIGN( width *  4 , 4 );
+    rgbaData = new uint8_t[ rgbaStride * height ];
+    memset( rgbaData, 0, sizeof(uint8_t) * rgbaStride * height );
+
+    for ( unsigned i = 0; i < height; ++i ) {
+        uint8_t *tmpRow = tmpData + ( i * tmpStride );
+        uint8_t *rgbaRow = rgbaData + ( i * rgbaStride );
+
+        for ( unsigned j = 0; j < width; ++j ) {
+            uint32_t B = tmpRow[ j * bpp + 0];
+            uint32_t G = tmpRow[ j * bpp + 1];
+            uint32_t R = tmpRow[ j * bpp + 2];
+            uint32_t A = 0;  // ignored
+
+            rgbaRow[ j * 4 + 0 ] = R;
+            rgbaRow[ j * 4 + 1 ] = G;
+            rgbaRow[ j * 4 + 2 ] = B;
+            rgbaRow[ j * 4 + 3 ] = A;
+        }
+    }
+
+    *pWidth = width;
+    *pHeight = height;
+    *pStrideBytes = rgbaStride;
+
+    fclose(bmp);
+    delete tmpData;
+    return rgbaData;
+
+error:
+    delete rgbaData;
+    delete tmpData;
+    fclose( bmp );
+    return nullptr;
+}
+
+/**
+ * Read a bitmap as NV21 data
+ *
+ * A very naive implementation
+ *
+ * Returns a heap pointer to NV21 data on success, nullptr on failure
+ */
+static inline uint8_t *GetNV21Data( const char *path, uint32_t *pWidth, uint32_t *pHeight )
+{
+    uint32_t width, height, strideBytes;
+    uint8_t *yuvData = nullptr;
+    uint8_t *rgbaData = nullptr;
+    int32_t R, G, B, Y, U, V;
+    int yIndex, uvIndex;
+
+    FailOnTo( !path || !pWidth || !pHeight , error, "GetNV21Data: invalid parameter\n" );
+
+    rgbaData = GetBmpData( path, &width, &height, &strideBytes);
+    FailOnTo( !rgbaData, error, "GetNV21Data: Failed to read bmp\n" );
+
+    yIndex = 0;
+    uvIndex = width * height;
+
+    yuvData = new uint8_t[ width * height * 12 / 8 ];
+    memset( yuvData, 0 , sizeof(uint8_t) * width * height * 12 / 8 );
+
+    for ( unsigned i = 0; i < height; i++ ) {
+        uint8_t *rgbaRow = rgbaData + ( i * strideBytes );
+
+        for ( unsigned j = 0; j < width; j++ ) {
+            R = rgbaRow[ j * 4 ];
+            G = rgbaRow[ j * 4 + 1];
+            B = rgbaRow[ j * 4 + 2];
+
+            // RGB to YUV conversion
+            Y = ( (  66 * R + 129 * G +  25 * B + 128) >> 8) +  16;
+            U = ( ( -38 * R -  74 * G + 112 * B + 128) >> 8) + 128;
+            V = ( ( 112 * R -  94 * G -  18 * B + 128) >> 8) + 128;
+
+            // NV21 is semi-planar:
+            //  8 bit luminance sample plane, Y
+            //  8 bit interleaved 2x2 subsampled chroma planes, V->U
+            yuvData[ yIndex++ ] = CLAMP( Y, 0, 255 );
+            if ( i % 2 == 0 && j % 2 == 0) {
+                yuvData[ uvIndex++ ] = CLAMP( U, 0, 255 );
+                yuvData[ uvIndex++ ] = CLAMP( V, 0, 255 );
+            }
+        }
+    }
+
+    *pWidth = width;
+    *pHeight = height;
+
+    delete rgbaData;
+    return yuvData;
+
+error:
+    delete rgbaData;
+    delete yuvData;
+    return nullptr;
+}
 
 //-----------------------------------------------------------------------------
 };  // namespace util

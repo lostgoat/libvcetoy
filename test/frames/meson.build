@@ -15,16 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with libvcetoy.  If not, see <http://www.gnu.org/licenses/>.
 
-vcetoytest_files = files (
-    'test.cpp',
-)
-
-vcetoy_test = executable(
-    'vcetoy_test',
-    vcetoytest_files,
-    dependencies : [ gtest_dep, minivk_dep, vcetoy_dep ]
-)
-
-test('gtest test', vcetoy_test)
-
-subdir('frames')
+configure_file( input: '001.bmp', output: '001.bmp', copy: true )
+configure_file( input: '002.bmp', output: '002.bmp', copy: true )
+configure_file( input: '003.bmp', output: '003.bmp', copy: true )
+configure_file( input: 'pattern.bmp', output: 'pattern.bmp', copy: true )
