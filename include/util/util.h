@@ -60,11 +60,29 @@ class FailureException : public std::exception
 
 /**
  * Print an error message about a failed condition
+ *
+ * Format is compatible with vim quickfix
  */
 #define ConditionErrorMsg(condition) \
     do {                                                        \
-        fprintf(stderr, "Check failed %s:%d: %s\n",             \
+        fprintf(stderr, "%s:%d: Failed condition check '%s'\n", \
                 __FILE__, __LINE__, #condition );               \
+    } while (0)
+
+/**
+ * Print a warning message
+ */
+#define Warn(format, ...) WarnOn( true, format, ##__VA_ARGS__ );
+
+/**
+ * Print a warning message
+ */
+#define WarnOn(condition, format, ...)                         \
+    do {                                                       \
+        if (condition) {                                       \
+            ConditionErrorMsg(condition);                      \
+            fprintf(stderr, format, ##__VA_ARGS__);            \
+        }                                                      \
     } while (0)
 
 /**
@@ -75,7 +93,7 @@ class FailureException : public std::exception
         if (condition) {                                       \
             ConditionErrorMsg(condition);                      \
             fprintf(stderr, format, ##__VA_ARGS__);            \
-            throw util::FailureException();                          \
+            throw util::FailureException();                    \
         }                                                      \
     } while (0)
 
@@ -85,6 +103,7 @@ class FailureException : public std::exception
 #define FailOnTo(condition, label, format, ...)                \
     do {                                                       \
         if (condition) {                                       \
+            ConditionErrorMsg(condition);                      \
             fprintf(stderr, format, ##__VA_ARGS__);            \
             goto label;                                        \
         }                                                      \

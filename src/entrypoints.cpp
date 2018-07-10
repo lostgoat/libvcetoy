@@ -18,43 +18,189 @@
  */
 
 #include <stdio.h>
+#include <memory>
 
 #include <util/util.h>
 #include <vcetoy/vcetoy.h>
 
 #include "VcetContext.h"
+#include "VcetBo.h"
 
-#define VCET_CTX( name, ctx ) \
-    VcetContext* name = reinterpret_cast<VcetContext*>(ctx);
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+struct VcetCtxProxy {
+    std::shared_ptr<VcetContext> mPtr;
 
+    VcetCtxProxy( std::shared_ptr<VcetContext> ctx )
+        : mPtr(ctx)
+    {}
+};
+
+static inline VcetContext* VcetCtxFromHandle( VcetCtxHandle hnd )
+{
+    VcetContext *ctx = nullptr;
+    VcetCtxProxy* proxy = reinterpret_cast<VcetCtxProxy*>(hnd);
+
+    FailOnTo( !proxy, error, "Invalid context handle\n" );
+
+    ctx = proxy->mPtr.get();
+    FailOnTo( !ctx, error, "Invalid context\n" );
+
+    return ctx;
+
+error:
+    return nullptr;
+}
+
+#define VCET_CTX_V( name, hnd )                         \
+    VcetContext *name = VcetContextFromHandle( hnd );   \
+    if (!name) return;
+
+#define VCET_CTX_B( name, hnd )                         \
+    VcetContext *name = VcetContextFromHandle( hnd );   \
+    if (!name) return false;                            \
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+struct VcetBoProxy {
+    std::shared_ptr<VcetBo> mPtr;
+
+    VcetBoProxy( std::shared_ptr<VcetBo> bo )
+        : mPtr(bo)
+    {}
+};
+
+static inline VcetBo* VcetBoFromHandle( VcetBoHandle hnd )
+{
+    VcetBo *bo = nullptr;
+    VcetBoProxy* proxy = reinterpret_cast<VcetBoProxy*>(hnd);
+
+    FailOnTo( !proxy, error, "Invalid bo handle\n" );
+
+    bo = proxy->mPtr.get();
+    FailOnTo( !bo, error, "Invalid bo\n" );
+
+    return bo;
+
+error:
+    return nullptr;
+}
+
+#define VCET_BO_V( name, hnd )                          \
+    VcetBo *name = VcetBoFromHandle( hnd );             \
+    if (!name) return;
+
+#define VCET_BO_B( name, hnd )                          \
+    VcetBo *name = VcetBoFromHandle( hnd );             \
+    if (!name) return false;
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 bool VcetContextCreate( VcetCtxHandle *pCtx )
 {
     bool ret;
+    std::shared_ptr<VcetContext> ctx = nullptr;
 
-    VcetContext *ctx = new VcetContext();
-    FailOnTo( !ctx, error, "Failed to allocate VcetContext\n" );
+    FailOnTo( !pCtx, error, "Failed to create context: bad parameter\n" );
+
+    ctx = std::make_shared<VcetContext>();
+    FailOnTo( !ctx, error, "Failed to create context: out of memory\n" );
 
     ret = ctx->Init();
-    FailOnTo( !ret, error, "Failed to initialize Vcetcontext\n" );
+    FailOnTo( !ret, error, "Failed to create context: init failed\n" );
 
     FailOnTo( !ctx->IsMvDumpSupported(), error, "MV dump not supported\n" );
 
-    *pCtx = reinterpret_cast<VcetCtxHandle>( ctx );
+    *pCtx = new VcetCtxProxy(std::move(ctx));
+    FailOnTo( !*pCtx, error, "Failed to create context: failed to allocate handle\n" );
+
+    FailOnTo( ctx.get() != nullptr, error, "ANDRES test move\n");
 
     return true;
 
 error:
-    delete ctx;
     return false;
 }
 
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 void VcetContextDestroy( VcetCtxHandle *pCtx )
 {
     if ( !pCtx )
         return;
 
-    VCET_CTX( ctx, *pCtx );
-    delete ctx;
-
+    delete *pCtx;
     *pCtx = nullptr;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBoCreate( VcetCtxHandle _ctx, uint64_t sizeBytes, bool mappable, VcetBoHandle *pBo )
+{
+    bool ret;
+    std::shared_ptr<VcetBo> bo = nullptr;
+
+    FailOnTo( !pBo || !_ctx || !_ctx->mPtr, error, "Failed to create bo: bad parameter\n" );
+
+    bo = std::make_shared<VcetBo>( _ctx->mPtr );
+    FailOnTo( !bo, error, "Failed to create bo: out of memory\n" );
+
+    ret = bo->Allocate( sizeBytes, mappable );
+    FailOnTo( !ret, error, "Failed to create bo: failed to allocate\n" );
+
+    *pBo = new VcetBoProxy(std::move(bo));
+    FailOnTo( !*pBo, error, "Failed to create bo: failed to allocate handle\n" );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+void VcetBoDestroy( VcetBoHandle *pBo )
+{
+    if ( !pBo )
+        return;
+
+    delete *pBo;
+    *pBo = nullptr;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBoMap( VcetBoHandle _bo, uint8_t **ppData )
+{
+    bool ret;
+    VCET_BO_B(bo, _bo );
+
+    FailOnTo( !ppData, error, "Failed to map bo: bad parameter\n" );
+
+    ret = bo->Map();
+    FailOnTo( !ret, error, "Failed to map bo: map failed\n" );
+
+    *ppData = bo->GetCpuAddr();
+    FailOnTo( *ppData == nullptr, error, "Failed to map bo: unexpected cpu addr\n" );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBoUnmap( VcetBoHandle _bo )
+{
+    bool ret;
+    VCET_BO_B(bo, _bo );
+
+    ret = bo->Unmap();
+    FailOnTo( !ret, error, "Failed to unmap bo: unmap failed\n" );
+
+    return true;
+
+error:
+    return false;
 }
