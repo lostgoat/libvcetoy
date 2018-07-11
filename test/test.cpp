@@ -23,7 +23,11 @@
 #include <vcetoy/vcetoy.h>
 #include <minivk/MiniVk.h>
 
-class VcetTest : public ::testing::Test {
+#define MAX_WIDTH 1920
+#define MAX_HEIGHT 1080
+
+class VcetTest : public ::testing::Test
+{
     protected:
         static const int kFrameMax = 4;
 
@@ -63,7 +67,7 @@ class VcetTest : public ::testing::Test {
             mUnmappableBo = nullptr;
             memset( mFrame, 0, sizeof(mFrame) );
 
-			ASSERT_TRUE( VcetContextCreate( &mCtx ) );
+            ASSERT_TRUE( VcetContextCreate( &mCtx, MAX_WIDTH, MAX_HEIGHT ) );
             ASSERT_NE( mCtx, nullptr );
 
             ASSERT_TRUE( VcetBoCreate( mCtx, 1024, true, &mMappableBo ) );
@@ -75,10 +79,10 @@ class VcetTest : public ::testing::Test {
             mFrame[1].FromBitmap( mCtx, "frames/002.bmp" );
             mFrame[2].FromBitmap( mCtx, "frames/003.bmp" );
             mFrame[3].FromBitmap( mCtx, "frames/pattern.bmp" );
-		}
+        }
 
-		virtual void TearDown()
-		{
+        virtual void TearDown()
+        {
             VcetBoDestroy( &mMappableBo );
             ASSERT_EQ( mMappableBo, nullptr );
 
@@ -87,7 +91,7 @@ class VcetTest : public ::testing::Test {
 
             VcetContextDestroy( &mCtx );
             ASSERT_EQ( mCtx, nullptr );
-		}
+        }
 
         VcetCtxHandle mCtx;
         Frame mFrame[ kFrameMax ];
@@ -107,7 +111,11 @@ TEST_F(VcetTest, Sanity)
 
 TEST_F( VcetTest, CtxCreateBadParam )
 {
-    ASSERT_FALSE( VcetContextCreate( nullptr ) );
+    VcetCtxHandle ctx;
+
+    ASSERT_FALSE( VcetContextCreate( nullptr, MAX_WIDTH, MAX_HEIGHT ) );
+    ASSERT_FALSE( VcetContextCreate( &ctx, 0, MAX_HEIGHT ) );
+    ASSERT_FALSE( VcetContextCreate( &ctx, MAX_WIDTH, 0 ) );
 }
 
 TEST_F( VcetTest, CtxDestroyBadParam )
@@ -117,7 +125,12 @@ TEST_F( VcetTest, CtxDestroyBadParam )
 
 TEST_F( VcetTest, CtxDestroyDoubleFree )
 {
-    VcetContextDestroy( &mCtx );
+    VcetCtxHandle ctx;
+    ASSERT_TRUE( VcetContextCreate( &ctx, MAX_WIDTH, MAX_HEIGHT ) );
+    VcetContextDestroy( &ctx );
+    ASSERT_EQ( nullptr, ctx );
+    VcetContextDestroy( &ctx );
+    ASSERT_EQ( nullptr, ctx );
 }
 
 TEST_F( VcetTest, BoUnmapBadParam )
@@ -169,17 +182,17 @@ INSTANTIATE_TEST_CASE_P( MemoryAllocAndMap, VcetTestParams, testing::Combine(
 ));
 
 class VulkanTest : public ::testing::Test {
-	protected:
-		virtual void SetUp()
-		{
-			ASSERT_EQ( miniVk.Init(), 0 );
-		}
+        protected:
+                virtual void SetUp()
+                {
+                        ASSERT_EQ( miniVk.Init(), 0 );
+                }
 
-		virtual void TearDown()
-		{
-		}
+                virtual void TearDown()
+                {
+                }
 
-		MiniVk miniVk;
+                MiniVk miniVk;
 };
 
 TEST_F(VulkanTest, Sanity)

@@ -21,19 +21,42 @@
 
 #include <libdrm/amdgpu.h>
 
+#include "VcetBo.h"
+
 class VcetContext
 {
+    private:
+        static constexpr float kNv21Bpp = 1.5;
+        static constexpr int kNumCpbBuffers = 10;
+
     public:
-        VcetContext();
+        VcetContext( );
         ~VcetContext();
 
-        bool Init();
+        bool Init( uint32_t maxWidth, uint32_t maxHeight );
         bool IsMvDumpSupported();
 
         amdgpu_device_handle GetDevice() { return mDevice; }
 
     private:
+        int AllocateResources();
+        bool AllocateResource( VcetBo*& bo, uint64_t size, bool mappable );
+
+        uint64_t GetFbSize();
+        uint64_t GetBsSize();
+        uint64_t GetCpbSize();
+
+        uint32_t GetAlignmentWidth();
+        uint32_t GetAlignmentHeight();
+
         int mDrmFd;
         amdgpu_device_handle mDevice;
-        struct amdgpu_gpu_info mGpuInfo; 
+        struct amdgpu_gpu_info mGpuInfo;
+
+        uint32_t mMaxWidth;
+        uint32_t mMaxHeight;
+
+        VcetBo *mBoFb;
+        VcetBo *mBoBs;
+        VcetBo *mBoCpb;
 };

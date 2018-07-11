@@ -35,6 +35,11 @@
 VcetContext::VcetContext()
     : mDrmFd( -1 )
     , mDevice( 0 )
+    , mMaxWidth( 0 )
+    , mMaxHeight( 0 )
+    , mBoFb( nullptr )
+    , mBoBs( nullptr )
+    , mBoCpb( nullptr )
 {
 }
 
@@ -42,6 +47,15 @@ VcetContext::VcetContext()
 //---------------------------------------------------------------------------//
 VcetContext::~VcetContext()
 {
+    delete mBoFb;
+    mBoFb = nullptr;
+
+    delete mBoBs;
+    mBoBs = nullptr;
+
+    delete mBoCpb;
+    mBoCpb = nullptr;
+
     if ( mDevice ) {
         amdgpu_device_deinitialize(mDevice);
         mDevice = 0;
@@ -55,22 +69,26 @@ VcetContext::~VcetContext()
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetContext::Init()
+bool VcetContext::Init( uint32_t maxWidth, uint32_t maxHeight )
 {
     int err;
     uint32_t devMajor, devMinor;
-    amdgpu_device_handle hDevice = 0;
+
+    FailOnTo( !maxWidth || !maxHeight, error, "Bad dimensions\n" );
+    mMaxWidth = maxWidth;
+    mMaxHeight = maxHeight;
 
     mDrmFd = drmOpenWithType( "amdgpu", NULL, DRM_NODE_RENDER );
     FailOnTo( mDrmFd < 0, error, "Failed to open amdgpu fd\n" );
 
-    err = amdgpu_device_initialize( mDrmFd, &devMajor, &devMinor, &hDevice );
+    err = amdgpu_device_initialize( mDrmFd, &devMajor, &devMinor, &mDevice );
     FailOnTo( err, error, "Failed to initialize amdgpu device\n" );
 
-    err = amdgpu_query_gpu_info( hDevice, &mGpuInfo );
+    err = amdgpu_query_gpu_info( mDevice, &mGpuInfo );
     FailOnTo( err, error, "Failed to query gpu info\n" );
 
-    mDevice = hDevice;
+    err = AllocateResources();
+    FailOnTo( err, error, "Failed to allocate context resources\n" );
 
     return true;
 
@@ -112,4 +130,85 @@ bool VcetContext::IsMvDumpSupported()
 error:
     // Assume we don't support anything else
     return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetContext::AllocateResource( VcetBo*& bo, uint64_t size, bool mappable )
+{
+    bool ret;
+
+    bo = new VcetBo( this );
+    FailOnTo( !bo, error, "Failed to create bo\n" );
+
+    ret = bo->Allocate( size, true );
+    FailOnTo( !ret, error, "Failed to allocate fb bo\n" );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int VcetContext::AllocateResources()
+{
+    bool ret;
+
+    ret = AllocateResource( mBoFb, GetFbSize(), true );
+    FailOnTo( !ret, error, "Failed to allocate fb bo\n" );
+
+    ret = AllocateResource( mBoBs, GetBsSize(), true );
+    FailOnTo( !ret, error, "Failed to allocate bs bo\n" );
+
+    ret = AllocateResource( mBoCpb, GetCpbSize(), false );
+    FailOnTo( !ret, error, "Failed to allocate cpb bo\n" );
+
+    return 0;
+
+error:
+    return -1;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint64_t VcetContext::GetFbSize()
+{
+    // TODO: might need per-family values
+    return 4096;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint64_t VcetContext::GetBsSize()
+{
+    // TODO: need per-family values
+    return 0x154000;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint64_t VcetContext::GetCpbSize()
+{
+    uint32_t alignedWidth = ALIGN( mMaxWidth, GetAlignmentWidth() );
+    uint32_t alignedHeight = ALIGN( mMaxWidth, GetAlignmentHeight() );
+
+    return alignedWidth * alignedHeight * kNv21Bpp * kNumCpbBuffers;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint32_t VcetContext::GetAlignmentWidth()
+{
+    // TODO: need per-family values
+    return 16;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint32_t VcetContext::GetAlignmentHeight()
+{
+    // TODO: need per-family values
+    return 16;
 }

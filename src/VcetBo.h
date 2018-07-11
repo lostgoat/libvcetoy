@@ -23,7 +23,7 @@
 
 #include <memory>
 
-#include "VcetContext.h"
+class VcetContext;
 
 class VcetBo
 {
@@ -33,7 +33,7 @@ class VcetBo
         static const uint64_t kVaAllocFlags = 0;
 
     public:
-        VcetBo( std::shared_ptr<VcetContext> pContext );
+        VcetBo( VcetContext *pContext );
         ~VcetBo();
 
         /**
@@ -61,7 +61,7 @@ class VcetBo
         uint8_t *GetCpuAddr() { return mCpuAddr; }
 
     private:
-        std::shared_ptr<VcetContext> mContext;
+        VcetContext *mContext;
 
         bool mMappable;
         uint64_t mSizeBytes;

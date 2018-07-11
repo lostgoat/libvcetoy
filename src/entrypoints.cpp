@@ -53,11 +53,11 @@ error:
 }
 
 #define VCET_CTX_V( name, hnd )                         \
-    VcetContext *name = VcetContextFromHandle( hnd );   \
+    VcetContext *name = VcetCtxFromHandle( hnd );   \
     if (!name) return;
 
 #define VCET_CTX_B( name, hnd )                         \
-    VcetContext *name = VcetContextFromHandle( hnd );   \
+    VcetContext *name = VcetCtxFromHandle( hnd );   \
     if (!name) return false;                            \
 
 //---------------------------------------------------------------------------//
@@ -96,7 +96,7 @@ error:
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetContextCreate( VcetCtxHandle *pCtx )
+bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeight )
 {
     bool ret;
     std::shared_ptr<VcetContext> ctx = nullptr;
@@ -106,7 +106,7 @@ bool VcetContextCreate( VcetCtxHandle *pCtx )
     ctx = std::make_shared<VcetContext>();
     FailOnTo( !ctx, error, "Failed to create context: out of memory\n" );
 
-    ret = ctx->Init();
+    ret = ctx->Init( maxWidth, maxHeight );
     FailOnTo( !ret, error, "Failed to create context: init failed\n" );
 
     FailOnTo( !ctx->IsMvDumpSupported(), error, "MV dump not supported\n" );
@@ -139,10 +139,11 @@ bool VcetBoCreate( VcetCtxHandle _ctx, uint64_t sizeBytes, bool mappable, VcetBo
 {
     bool ret;
     std::shared_ptr<VcetBo> bo = nullptr;
+    VCET_CTX_B( ctx, _ctx );
 
-    FailOnTo( !pBo || !_ctx || !_ctx->mPtr, error, "Failed to create bo: bad parameter\n" );
+    FailOnTo( !pBo, error, "Failed to create bo: bad parameter\n" );
 
-    bo = std::make_shared<VcetBo>( _ctx->mPtr );
+    bo = std::make_shared<VcetBo>( ctx );
     FailOnTo( !bo, error, "Failed to create bo: out of memory\n" );
 
     ret = bo->Allocate( sizeBytes, mappable );

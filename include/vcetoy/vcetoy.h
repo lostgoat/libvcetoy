@@ -44,7 +44,7 @@ typedef VcetBoProxy* VcetBoHandle;
  *
  * Returns: true on success, false otherwise
  */
-bool VcetContextCreate( VcetCtxHandle *pCtx );
+bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeight );
 
 /**
  * Destroy a libvcetoy context

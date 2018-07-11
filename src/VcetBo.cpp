@@ -20,12 +20,13 @@
 #include <util/util.h>
 #include <drm/amdgpu_drm.h>
 
+#include "VcetContext.h"
 #include "VcetBo.h"
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-VcetBo::VcetBo( std::shared_ptr<VcetContext> pContext )
-    : mContext( std::move(pContext) )
+VcetBo::VcetBo( VcetContext *pContext )
+    : mContext( pContext )
     , mMappable( false )
     , mSizeBytes( 0 )
     , mBoHandle( 0 )
