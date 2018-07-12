@@ -46,9 +46,15 @@ class VcetContext
 
         unsigned GetIpType();
 
+        VcetBo *GetFb() { return mBoFb; };
+        VcetBo *GetBs() { return mBoBs; };
+        VcetBo *GetCpb() { return mBoCpb; };
+
     private:
         int AllocateResources();
         bool AllocateResource( VcetBo*& bo, uint64_t size, bool mappable );
+        int CreateSession();
+        int DestroySession();
 
         uint64_t GetFbSize();
         uint64_t GetBsSize();

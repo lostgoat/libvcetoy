@@ -98,6 +98,7 @@ bool VcetBoUnmap( VcetBoHandle bo );
 /**
  * Calculate the motion vector delta between oldFrame and newFrame
  *
+ * @param _ctx      The vcet context
  * @param _oldFrame The reference frame in NV21 format
  * @param _newFrame The current frame in NV21 format
  * @param _mvBo     The buffer in which to dump the motion vector data
@@ -106,7 +107,7 @@ bool VcetBoUnmap( VcetBoHandle bo );
  *
  * @return true on success, false otherwise
  */
-bool VcetCalculateMv( VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height );
+bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height );
 
 #ifdef __cplusplus
 }

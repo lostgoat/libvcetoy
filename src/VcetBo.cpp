@@ -65,32 +65,33 @@ VcetBo::~VcetBo()
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetBo::Allocate( uint64_t sizeBytes, bool mappable )
+bool VcetBo::Allocate( uint64_t sizeBytes, bool mappable, uint32_t alignment )
 {
     int err;
     uint64_t gpuAddr = 0;
     amdgpu_va_handle vaHandle;
     amdgpu_bo_handle boHandle;
-    uint64_t alignedSize = ALIGN(sizeBytes, kMemoryAlignment);
+    uint64_t alignedSize = ALIGN(sizeBytes, alignment );
     int domain = mappable ? AMDGPU_GEM_DOMAIN_GTT :AMDGPU_GEM_DOMAIN_VRAM;
     struct amdgpu_bo_alloc_request req = {};
 
     FailOnTo( sizeBytes == 0, error, "Invalid bo size\n" );
 
     req.alloc_size = alignedSize;
+    req.phys_alignment = alignment;
     req.preferred_heap = domain;
+    req.flags = 0;
     err = amdgpu_bo_alloc( mContext->GetDevice(), &req, &boHandle );
     FailOnTo( err, error, "Failed to allocate amdgpu bo\n" );
 
     err = amdgpu_va_range_alloc( mContext->GetDevice(),
                                  amdgpu_gpu_va_range_general,
-                                 alignedSize, kVaBaseAlignment, 0,
+                                 alignedSize, kVaAlignment, 0,
                                  &gpuAddr, &vaHandle, kVaAllocFlags);
     FailOnTo( err, error, "Failed to allocate gpuAddr for bo\n" );
 
     err = amdgpu_bo_va_op( boHandle, 0, alignedSize, gpuAddr, 0, AMDGPU_VA_OP_MAP);
     FailOnTo( err, error, "Failed to map gpuAddr for bo\n" );
-
 
     mGpuAddr = gpuAddr;
     mSizeBytes = alignedSize;

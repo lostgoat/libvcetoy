@@ -38,8 +38,8 @@ class VcetTest : public ::testing::Test
             ASSERT_TRUE( VcetContextCreate( &mCtx, MAX_WIDTH, MAX_HEIGHT ) );
             ASSERT_NE( mCtx, nullptr );
 
-            ASSERT_TRUE( VcetBoCreate( mCtx, 1024, true, &mMappableBo ) );
-            ASSERT_TRUE( VcetBoCreate( mCtx, 1024, false, &mUnmappableBo ) );
+            ASSERT_TRUE( VcetBoCreate( mCtx, MAX_WIDTH * MAX_HEIGHT * 1.5 , true, &mMappableBo ) );
+            ASSERT_TRUE( VcetBoCreate( mCtx, MAX_WIDTH * MAX_HEIGHT * 1.5, false, &mUnmappableBo ) );
             ASSERT_NE( mMappableBo, nullptr );
             ASSERT_NE( mUnmappableBo, nullptr );
         }
@@ -173,6 +173,22 @@ class VcetTestFrames : public VcetTest
 
 TEST_F(VcetTestFrames, Sanity)
 {
+}
+
+TEST_F(VcetTestFrames, CalculateMv )
+{
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
+                                  mMappableBo,
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+}
+
+TEST_F(VcetTestFrames, MultipleSubmissions )
+{
+    for ( int i = 0; i < 20; i++ ) {
+        ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
+                                      mMappableBo,
+                                      mFrame[0]->mWidth, mFrame[0]->mHeight ));
+    }
 }
 
 class VcetTestParams : public VcetTest,

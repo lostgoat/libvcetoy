@@ -61,7 +61,7 @@ class FailureException : public std::exception
  */
 #define ConditionErrorMsg(condition) \
     do {                                                        \
-        fprintf(stderr, "%s:%d: Failed condition check '%s'\n", \
+        fprintf(stderr, "%s:%d: Failed condition check '%s': ", \
                 __FILE__, __LINE__, #condition );               \
     } while (0)
 

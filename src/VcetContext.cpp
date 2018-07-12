@@ -51,6 +51,11 @@ VcetContext::VcetContext()
 //---------------------------------------------------------------------------//
 VcetContext::~VcetContext()
 {
+    bool ret;
+    
+    ret = DestroySession();
+    WarnOn( !ret, "Failed to destroy VCE session\n" );
+    
     delete mBoFb;
     mBoFb = nullptr;
 
@@ -91,11 +96,14 @@ bool VcetContext::Init( uint32_t maxWidth, uint32_t maxHeight )
     err = amdgpu_query_gpu_info( mDevice, &mGpuInfo );
     FailOnTo( err, error, "Failed to query gpu info\n" );
 
-	err = amdgpu_cs_ctx_create( mDevice, &mDeviceContext );
+    err = amdgpu_cs_ctx_create( mDevice, &mDeviceContext );
     FailOnTo( err, error, "Failed to create device context\n" );
 
     err = AllocateResources();
     FailOnTo( err, error, "Failed to allocate context resources\n" );
+
+    err = CreateSession();
+    FailOnTo( err, error, "Failed to create session\n" );
 
     return true;
 
@@ -188,6 +196,50 @@ error:
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
+int VcetContext::CreateSession()
+{
+    bool ret;
+    VcetIb *ib = nullptr;
+
+    ib = GetNextIb();
+    FailOnTo( !ib, error, "Invalid ib\n" );
+
+    ret = ib->WriteCreateSession();
+    FailOnTo( !ret, error, "Failed to prepare create session ib\n" );
+
+    ret = Submit( ib );
+    FailOnTo( !ret, error, "Failed to submit create session ib\n" );
+
+    return 0;
+
+error:
+    return -1;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int VcetContext::DestroySession()
+{
+    bool ret;
+    VcetIb *ib = nullptr;
+
+    ib = GetNextIb();
+    FailOnTo( !ib, error, "Invalid ib\n" );
+
+    ret = ib->WriteoDestroySession();
+    FailOnTo( !ret, error, "Failed to prepare destroy session ib\n" );
+
+    ret = Submit( ib );
+    FailOnTo( !ret, error, "Failed to submit destroy session ib\n" );
+
+    return 0;
+
+error:
+    return -1;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 uint64_t VcetContext::GetFbSize()
 {
     // TODO: might need per-family values
@@ -248,9 +300,6 @@ bool VcetContext::CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo,
     ib = GetNextIb();
     FailOnTo( !ib, error, "Invalid ib\n" );
 
-    ret = ib->Reset();
-    FailOnTo( !ret, error, "Failed to reset ib\n" );
-
     ret = ib->WriteCalculateMv( oldFrame, newFrame, mvBo, width, height );
     FailOnTo( !ret, error, "Failed to prepare mv dump ib\n" );
 
@@ -267,8 +316,20 @@ error:
 //---------------------------------------------------------------------------//
 VcetIb *VcetContext::GetNextIb()
 {
+    bool ret;
+    VcetIb *ib;
+
     mIbIdx = ( mIbIdx + 1 ) % kNumIbs;
-    return mIbs[ mIbIdx ];
+    ib = mIbs[ mIbIdx ];
+    FailOnTo( !ib, error, "Invalid ib\n" );
+
+    ret = ib->Reset();
+    FailOnTo( !ret, error, "Failed to reset ib\n" );
+
+    return ib;
+
+error:
+    return nullptr;
 }
 
 //---------------------------------------------------------------------------//
@@ -281,7 +342,7 @@ bool VcetContext::Submit( VcetIb *ib )
     amdgpu_bo_list_handle boList = nullptr;
 
     ibInfo.ib_mc_address = ib->GetGpuAddress();
-    ibInfo.size = ib->GetSize();
+    ibInfo.size = ib->GetSizeDw();
 
     err = amdgpu_bo_list_create( mDevice, ib->GetNumResources(),
                                  ib->GetResources(), nullptr,

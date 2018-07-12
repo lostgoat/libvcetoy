@@ -28,8 +28,8 @@ class VcetContext;
 class VcetBo
 {
     private:
-        static const int kMemoryAlignment = 4096;
-        static const uint64_t kVaBaseAlignment = 1;
+        static const int kDefaultAlignment = 4096;
+        static const int kVaAlignment = 4096;
         static const uint64_t kVaAllocFlags = 0;
 
     public:
@@ -41,7 +41,7 @@ class VcetBo
          *
          * If mappable is set, then the memory will be CPU visible as well.
          */
-        bool Allocate( uint64_t sizeBytes, bool mappable );
+        bool Allocate( uint64_t sizeBytes, bool mappable, uint32_t alignment = kDefaultAlignment );
 
         /**
          * Map the BO for cpu usage
@@ -64,6 +64,16 @@ class VcetBo
          * Get the current Gpu address
          */
         uint64_t GetGpuAddr() { return mGpuAddr; }
+
+        /**
+         * Get the amdgpu bo handle
+         */
+        amdgpu_bo_handle GetBoHandle() { return mBoHandle; }
+
+        /**
+         * Get the bo's size
+         */
+        uint64_t GetSizeBytes() { return mSizeBytes; }
 
     private:
         VcetContext *mContext;
