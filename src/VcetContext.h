@@ -21,13 +21,15 @@
 
 #include <libdrm/amdgpu.h>
 
-#include "VcetBo.h"
+class VcetIb;
+class VcetBo;
 
 class VcetContext
 {
     private:
         static constexpr float kNv21Bpp = 1.5;
         static constexpr int kNumCpbBuffers = 10;
+        static constexpr int kNumIbs = 8;
 
     public:
         VcetContext( );
@@ -50,8 +52,9 @@ class VcetContext
         uint32_t GetAlignmentHeight();
 
         int mDrmFd;
-        amdgpu_device_handle mDevice;
         struct amdgpu_gpu_info mGpuInfo;
+        amdgpu_device_handle mDevice;
+        amdgpu_context_handle mDeviceContext;
 
         uint32_t mMaxWidth;
         uint32_t mMaxHeight;
@@ -59,4 +62,7 @@ class VcetContext
         VcetBo *mBoFb;
         VcetBo *mBoBs;
         VcetBo *mBoCpb;
+
+        uint32_t mIbIdx;
+        VcetIb *mIbs[ kNumIbs ];
 };

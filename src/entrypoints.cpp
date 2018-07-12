@@ -174,7 +174,7 @@ void VcetBoDestroy( VcetBoHandle *pBo )
 bool VcetBoMap( VcetBoHandle _bo, uint8_t **ppData )
 {
     bool ret;
-    VCET_BO_B(bo, _bo );
+    VCET_BO_B( bo, _bo );
 
     FailOnTo( !ppData, error, "Failed to map bo: bad parameter\n" );
 
@@ -195,12 +195,30 @@ error:
 bool VcetBoUnmap( VcetBoHandle _bo )
 {
     bool ret;
-    VCET_BO_B(bo, _bo );
+    VCET_BO_B( bo, _bo );
 
     ret = bo->Unmap();
     FailOnTo( !ret, error, "Failed to unmap bo: unmap failed\n" );
 
     return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetCalculateMv( VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height )
+{
+    bool ret = false;
+
+    VCET_BO_B( oldFrame, _oldFrame );
+    VCET_BO_B( newFrame, _newFrame );
+    VCET_BO_B( mvBo, _mvBo );
+
+    FailOnTo( !oldFrame || !newFrame || !mvBo, error, "Failed to calculate mv: bad bo\n" );
+
+    return ret;
 
 error:
     return false;

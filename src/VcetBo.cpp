@@ -56,7 +56,6 @@ VcetBo::~VcetBo()
     }
 
     if ( mVaHandle ) {
-
         err = amdgpu_va_range_free( mVaHandle );
         WarnOn( err, "Failed to free va range\n" );
 

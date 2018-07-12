@@ -23,6 +23,9 @@
 #include <xf86drm.h>
 #include <drm/amdgpu_drm.h>
 
+#include "VcetIb.h"
+#include "VcetBo.h"
+
 #include "VcetContext.h"
 
 /**
@@ -41,6 +44,7 @@ VcetContext::VcetContext()
     , mBoBs( nullptr )
     , mBoCpb( nullptr )
 {
+    memset( mIbs, 0, sizeof(mIbs) );
 }
 
 //---------------------------------------------------------------------------//
@@ -86,6 +90,9 @@ bool VcetContext::Init( uint32_t maxWidth, uint32_t maxHeight )
 
     err = amdgpu_query_gpu_info( mDevice, &mGpuInfo );
     FailOnTo( err, error, "Failed to query gpu info\n" );
+
+	err = amdgpu_cs_ctx_create( mDevice, &mDeviceContext );
+    FailOnTo( err, error, "Failed to create device context\n" );
 
     err = AllocateResources();
     FailOnTo( err, error, "Failed to allocate context resources\n" );
@@ -164,6 +171,14 @@ int VcetContext::AllocateResources()
 
     ret = AllocateResource( mBoCpb, GetCpbSize(), false );
     FailOnTo( !ret, error, "Failed to allocate cpb bo\n" );
+
+    for ( int i = 0; i < kNumIbs; ++i ) {
+        mIbs[i] = new VcetIb( this );
+        FailOnTo( !mIbs[i], error, "Failed to create ib\n" );
+
+        ret = mIbs[i]->Init();
+        FailOnTo( !ret, error, "Failed to init IB\n" );
+    }
 
     return 0;
 

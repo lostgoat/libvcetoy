@@ -40,9 +40,11 @@ typedef VcetBoProxy* VcetBoHandle;
 /**
  * Create a libvcetoy context
  *
- * On success, pCtx will be populated with a context handle
+ * @param pCtx      On success, populated with the libvcetoy context handle
+ * @param maxWidth  The maximum frame width the app expects to handle
+ * @param maxHeight The maximum frame height the app expects to handle
  *
- * Returns: true on success, false otherwise
+ * @return true on success, false otherwise
  */
 bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeight );
 
@@ -50,34 +52,61 @@ bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeig
  * Destroy a libvcetoy context
  *
  * Destroys the context referenced by the *pCtx handle
+ *
+ * @return true on success, false otherwise
  */
 void VcetContextDestroy( VcetCtxHandle *pCtx );
 
 /**
  * Creates a libvcetoy buffer object
  *
- * This references a region of gpu accessible memory
+ * @param ctx       The VcetCtx from which to allocate the bo
+ * @param sizeBytes Requested size of the bo in bytes
+ * @param mappable  Request that the allocated bo be CPU mappable
+ * @param pBo       On success, populated with the bo handle
+ *
+ * @return true on success, false otherwise
  */
 bool VcetBoCreate( VcetCtxHandle ctx, uint64_t sizeBytes, bool mappable, VcetBoHandle *pBo );
 
 /**
  * Destroys a libvcetoy buffer object
  *
- * Frees the associated gpu resources
+ * @param pBo   Pointer to the bo to destroy
  */
 void VcetBoDestroy( VcetBoHandle *pBo );
 
 /**
  * Map a buffer object for cpu access
  *
- * On success, ppData is populated with a cpu accessible address
+ * @param bo        The bo to map
+ * @param ppData    Will be filled with a cpu pointer to bo's memory
+ *
+ * @return true on success, false otherwise
  */
 bool VcetBoMap( VcetBoHandle bo, uint8_t **ppData );
 
 /**
  * Destroy a buffer objects CPU mapping
+ *
+ * @param bo    The bo to unmap
+ *
+ * @return true on success, false otherwise
  */
 bool VcetBoUnmap( VcetBoHandle bo );
+
+/**
+ * Calculate the motion vector delta between oldFrame and newFrame
+ *
+ * @param _oldFrame The reference frame in NV21 format
+ * @param _newFrame The current frame in NV21 format
+ * @param _mvBo     The buffer in which to dump the motion vector data
+ * @param width     The frame's width dimension
+ * @param height    The frame's height dimension
+ *
+ * @return true on success, false otherwise
+ */
+bool VcetCalculateMv( VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height );
 
 #ifdef __cplusplus
 }

@@ -21,6 +21,7 @@ libvcetoy_files = files(
     'entrypoints.cpp',
     'VcetContext.cpp',
     'VcetBo.cpp',
+    'VcetIb.cpp',
 )
 
 
