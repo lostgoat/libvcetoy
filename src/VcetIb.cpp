@@ -31,6 +31,8 @@ VcetIb::VcetIb( VcetContext *pContext )
     : mContext( pContext )
     , mBo( pContext )
     , mIbData( nullptr )
+    , mSeqNo( 0 )
+    , mSize( 0 )
 {
 }
 
@@ -60,4 +62,53 @@ bool VcetIb::Init()
 error:
     // TODO de-allocate intermediate stuff
     return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetIb::WaitFromCompletion( uint64_t timeout )
+{
+    int err;
+    uint32_t expired;
+    struct amdgpu_cs_fence fenceStatus = {0};
+
+    fenceStatus.context = mContext->GetDeviceContext();
+    fenceStatus.ip_type = mContext->GetIpType();
+    fenceStatus.fence = mSeqNo;
+
+    err = amdgpu_cs_query_fence_status( &fenceStatus, timeout, 0, &expired);
+    FailOnTo( err, error, "Failed to wait for ib completion\n" );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetIb::Reset()
+{
+    mSize = 0;
+    mSeqNo = 0;
+
+    if ( kClearOnReset ) {
+        memset( mIbData, 0, kSize );
+    }
+
+    return true;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetIb::WriteNop( uint32_t count )
+{
+    return true;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetIb::WriteCalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height )
+{
+    return true;
 }

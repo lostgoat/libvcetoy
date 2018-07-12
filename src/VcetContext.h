@@ -30,6 +30,7 @@ class VcetContext
         static constexpr float kNv21Bpp = 1.5;
         static constexpr int kNumCpbBuffers = 10;
         static constexpr int kNumIbs = 8;
+        static constexpr bool kForceSubmitSync = true;
 
     public:
         VcetContext( );
@@ -38,7 +39,12 @@ class VcetContext
         bool Init( uint32_t maxWidth, uint32_t maxHeight );
         bool IsMvDumpSupported();
 
+        bool CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height );
+
         amdgpu_device_handle GetDevice() { return mDevice; }
+        amdgpu_context_handle GetDeviceContext() { return mDeviceContext; }
+
+        unsigned GetIpType();
 
     private:
         int AllocateResources();
@@ -50,6 +56,9 @@ class VcetContext
 
         uint32_t GetAlignmentWidth();
         uint32_t GetAlignmentHeight();
+
+        VcetIb *GetNextIb();
+        bool Submit( VcetIb *ib );
 
         int mDrmFd;
         struct amdgpu_gpu_info mGpuInfo;

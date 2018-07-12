@@ -60,6 +60,11 @@ class VcetBo
          */
         uint8_t *GetCpuAddr() { return mCpuAddr; }
 
+        /**
+         * Get the current Gpu address
+         */
+        uint64_t GetGpuAddr() { return mGpuAddr; }
+
     private:
         VcetContext *mContext;
 

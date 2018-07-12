@@ -208,17 +208,21 @@ error:
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetCalculateMv( VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height )
+bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height )
 {
-    bool ret = false;
+    bool ret;
 
+    VCET_CTX_B( ctx, _ctx );
     VCET_BO_B( oldFrame, _oldFrame );
     VCET_BO_B( newFrame, _newFrame );
     VCET_BO_B( mvBo, _mvBo );
 
-    FailOnTo( !oldFrame || !newFrame || !mvBo, error, "Failed to calculate mv: bad bo\n" );
+    FailOnTo( !ctx , error, "Failed to calculate mv: bad parameter\n" );
 
-    return ret;
+    ret = ctx->CalculateMv( oldFrame, newFrame, mvBo, width, height );
+    FailOnTo( !ret, error, "Failed to calculate mv: processing failure\n" );
+    
+    return true;
 
 error:
     return false;
