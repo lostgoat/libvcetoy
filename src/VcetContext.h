@@ -27,7 +27,6 @@ class VcetBo;
 class VcetContext
 {
     private:
-        static constexpr float kNv21Bpp = 1.5;
         static constexpr int kNumCpbBuffers = 10;
         static constexpr int kNumIbs = 8;
         static constexpr bool kForceSubmitSync = true;
@@ -44,7 +43,8 @@ class VcetContext
         amdgpu_device_handle GetDevice() { return mDevice; }
         amdgpu_context_handle GetDeviceContext() { return mDeviceContext; }
 
-        unsigned GetIpType();
+        uint32_t GetIpType();
+        uint32_t GetFamilyId();
 
         VcetBo *GetFb() { return mBoFb; };
         VcetBo *GetBs() { return mBoBs; };
@@ -59,9 +59,6 @@ class VcetContext
         uint64_t GetFbSize();
         uint64_t GetBsSize();
         uint64_t GetCpbSize();
-
-        uint32_t GetAlignmentWidth();
-        uint32_t GetAlignmentHeight();
 
         VcetIb *GetNextIb();
         bool Submit( VcetIb *ib );

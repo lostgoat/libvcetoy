@@ -70,6 +70,21 @@ void VcetContextDestroy( VcetCtxHandle *pCtx );
 bool VcetBoCreate( VcetCtxHandle ctx, uint64_t sizeBytes, bool mappable, VcetBoHandle *pBo );
 
 /**
+ * Creates a libvcetoy buffer object to represent an NV21 image
+ *
+ * @param ctx               The VcetCtx from which to allocate the bo
+ * @param width             Image width
+ * @param height            Image height
+ * @param mappable          Request that the allocated bo be CPU mappable
+ * @param pBo               On success, populated with the bo handle
+ * @param pAlignedWidth     Aligned width according to HW requirements
+ * @param pAlignedHeight    Aligned height according to HW requirements
+ *
+ * @return true on success, false otherwise
+ */
+bool VcetBoCreateImage( VcetCtxHandle ctx, uint32_t width, uint32_t height, bool mappable, VcetBoHandle *pBo, uint32_t *pAlignedWidth, uint32_t *pAlignedHeight );
+
+/**
  * Destroys a libvcetoy buffer object
  *
  * @param pBo   Pointer to the bo to destroy

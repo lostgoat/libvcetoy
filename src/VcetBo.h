@@ -33,6 +33,12 @@ class VcetBo
         static const uint64_t kVaAllocFlags = 0;
 
     public:
+        static constexpr float kNv21Bpp = 1.5;
+        static uint32_t GetWidthAlignment( uint32_t familyId );
+        static uint32_t GetHeightAlignment( uint32_t familyId );
+
+    public:
+
         VcetBo( VcetContext *pContext );
         ~VcetBo();
 
@@ -42,6 +48,14 @@ class VcetBo
          * If mappable is set, then the memory will be CPU visible as well.
          */
         bool Allocate( uint64_t sizeBytes, bool mappable, uint32_t alignment = kDefaultAlignment );
+
+        /**
+         * Allocate an NV21 image of dimensions width x height
+         *
+         * If mappable is set, then the memory will be CPU visible as well.
+         */
+        bool Allocate( uint32_t width, uint32_t height, bool mappable );
+
 
         /**
          * Map the BO for cpu usage
@@ -56,30 +70,30 @@ class VcetBo
         bool Unmap();
 
         /**
-         * Get the current cpu address
+         * Getters/Setters
          */
-        uint8_t *GetCpuAddr() { return mCpuAddr; }
-
-        /**
-         * Get the current Gpu address
-         */
-        uint64_t GetGpuAddr() { return mGpuAddr; }
-
-        /**
-         * Get the amdgpu bo handle
-         */
-        amdgpu_bo_handle GetBoHandle() { return mBoHandle; }
-
-        /**
-         * Get the bo's size
-         */
-        uint64_t GetSizeBytes() { return mSizeBytes; }
+        uint8_t*    GetCpuAddr()        { return mCpuAddr; }
+        uint64_t    GetGpuAddr()        { return mGpuAddr; }
+        amdgpu_bo_handle GetBoHandle()  { return mBoHandle; }
+        uint64_t    GetSizeBytes()      { return mSizeBytes; }
+        uint32_t    GetWidth()          { return mWidth; }
+        uint32_t    GetHeight()         { return mHeight; }
+        uint32_t    GetAlignedWidth()   { return mAlignedWidth; }
+        uint32_t    GetAlignedHeight()  { return mAlignedHeight; }
 
     private:
+        uint32_t GetWidthAlignment();
+        uint32_t GetHeightAlignment();
+
         VcetContext *mContext;
 
         bool mMappable;
+
         uint64_t mSizeBytes;
+        uint32_t mWidth;
+        uint32_t mHeight;
+        uint32_t mAlignedWidth;
+        uint32_t mAlignedHeight;
 
         amdgpu_bo_handle mBoHandle;
         amdgpu_va_handle mVaHandle;

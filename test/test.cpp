@@ -40,12 +40,16 @@ class VcetTest : public ::testing::Test
 
             ASSERT_TRUE( VcetBoCreate( mCtx, MAX_WIDTH * MAX_HEIGHT * 1.5 , true, &mMappableBo ) );
             ASSERT_TRUE( VcetBoCreate( mCtx, MAX_WIDTH * MAX_HEIGHT * 1.5, false, &mUnmappableBo ) );
+            ASSERT_TRUE( VcetBoCreateImage( mCtx, 1, 1, true, &mTinyImage, &mWidthAlignment, &mHeightAlignment ) );
             ASSERT_NE( mMappableBo, nullptr );
             ASSERT_NE( mUnmappableBo, nullptr );
         }
 
         virtual void TearDown()
         {
+            VcetBoDestroy( &mTinyImage );
+            ASSERT_EQ( mTinyImage, nullptr );
+
             VcetBoDestroy( &mMappableBo );
             ASSERT_EQ( mMappableBo, nullptr );
 
@@ -59,6 +63,10 @@ class VcetTest : public ::testing::Test
         VcetCtxHandle mCtx;
         VcetBoHandle mMappableBo;
         VcetBoHandle mUnmappableBo;
+        VcetBoHandle mTinyImage;
+
+        uint32_t mWidthAlignment;
+        uint32_t mHeightAlignment;
 };
 
 TEST_F(VcetTest, Sanity)
@@ -105,6 +113,8 @@ class VcetTestFrames : public VcetTest
         public:
             uint32_t mWidth;
             uint32_t mHeight;
+            uint32_t mAlignedWidth;
+            uint32_t mAlignedHeight;
             uint64_t mSize;
             VcetBoHandle mBo;
 
@@ -118,14 +128,20 @@ class VcetTestFrames : public VcetTest
                 ASSERT_NE( nullptr, pFrameData );
 
                 // TODO: this might need some alignment?
-                mSize = mWidth * mHeight * 12 / 8;
-                ASSERT_TRUE( VcetBoCreate( ctx, mSize, true, &mBo ) );
+                ASSERT_TRUE( VcetBoCreateImage( ctx, mWidth, mHeight, true, &mBo, &mAlignedWidth, &mAlignedHeight ) );
                 ASSERT_NE( nullptr, mBo );
 
                 ASSERT_TRUE( VcetBoMap( mBo, &pBoData ) );
                 ASSERT_NE( nullptr, pBoData );
 
-                memcpy( pBoData, pFrameData, mSize );
+                mSize = mAlignedWidth * mAlignedHeight * 1.5;
+                memset( pBoData, 0, mSize );
+
+                //uint8_t *lumaData = pBoData;
+                //for ( int i = 0; i < mHeight; ++i ) {
+                    //uint8_t *yRow = lumaData + ( i * )
+                    //memcpy( yRow, pFrameData, mAlignedWidth );
+                //}
 
                 delete pFrameData;
             }

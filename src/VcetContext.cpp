@@ -258,33 +258,24 @@ uint64_t VcetContext::GetBsSize()
 //---------------------------------------------------------------------------//
 uint64_t VcetContext::GetCpbSize()
 {
-    uint32_t alignedWidth = ALIGN( mMaxWidth, GetAlignmentWidth() );
-    uint32_t alignedHeight = ALIGN( mMaxWidth, GetAlignmentHeight() );
+    uint32_t alignedWidth = ALIGN( mMaxWidth, VcetBo::GetWidthAlignment( GetFamilyId() ) );
+    uint32_t alignedHeight = ALIGN( mMaxWidth, VcetBo::GetHeightAlignment( GetFamilyId() ) );
 
-    return alignedWidth * alignedHeight * kNv21Bpp * kNumCpbBuffers;
+    return alignedWidth * alignedHeight * VcetBo::kNv21Bpp * kNumCpbBuffers;
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetContext::GetAlignmentWidth()
-{
-    // TODO: need per-family values
-    return 16;
-}
-
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
-unsigned VcetContext::GetIpType()
+uint32_t VcetContext::GetIpType()
 {
     return AMDGPU_HW_IP_VCE;
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetContext::GetAlignmentHeight()
+uint32_t VcetContext::GetFamilyId()
 {
-    // TODO: need per-family values
-    return 16;
+    return mGpuInfo.family_id;
 }
 
 //---------------------------------------------------------------------------//

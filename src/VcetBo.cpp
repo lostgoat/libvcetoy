@@ -29,6 +29,10 @@ VcetBo::VcetBo( VcetContext *pContext )
     : mContext( pContext )
     , mMappable( false )
     , mSizeBytes( 0 )
+    , mWidth( 0 )
+    , mHeight( 0 )
+    , mAlignedWidth( 0 )
+    , mAlignedHeight( 0 )
     , mBoHandle( 0 )
     , mVaHandle( 0 )
     , mGpuAddr( 0 )
@@ -106,6 +110,29 @@ error:
     return false;
 }
 
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBo::Allocate( uint32_t width, uint32_t height, bool mappable )
+{
+    bool ret;
+    uint32_t alignedWidth = ALIGN( width, GetWidthAlignment() );
+    uint32_t alignedHeight = ALIGN( height, GetWidthAlignment() );
+    uint64_t nv21Size = alignedWidth * alignedHeight * kNv21Bpp;
+
+    ret = Allocate( nv21Size, mappable, kDefaultAlignment );
+    FailOnTo( !ret, error, "Failed to allocate bo by size\n" );
+
+    mWidth = width;
+    mHeight = height;
+    mAlignedWidth = alignedWidth;
+    mAlignedHeight = alignedHeight;
+
+    return true;
+
+error:
+    return false;
+}
+
 bool VcetBo::Map()
 {
     int err;
@@ -142,4 +169,57 @@ bool VcetBo::Unmap()
 
 error:
     return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint32_t VcetBo::GetWidthAlignment()
+{
+    return GetWidthAlignment( mContext->GetFamilyId() );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint32_t VcetBo::GetHeightAlignment()
+{
+    return GetHeightAlignment( mContext->GetFamilyId() );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint32_t VcetBo::GetWidthAlignment( uint32_t familyId )
+{
+    switch ( familyId ) {
+    case AMDGPU_FAMILY_RV:
+    case AMDGPU_FAMILY_AI:
+        return 256;
+    case AMDGPU_FAMILY_SI:
+    case AMDGPU_FAMILY_CI:
+    case AMDGPU_FAMILY_KV:
+    case AMDGPU_FAMILY_VI:
+    case AMDGPU_FAMILY_CZ:
+        return 16;
+    default:
+        Warn( "Unknown family id: %d - default to highest alignment\n", familyId );
+        return 256;
+    }
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+uint32_t VcetBo::GetHeightAlignment( uint32_t familyId )
+{
+    switch ( familyId ) {
+    case AMDGPU_FAMILY_RV:
+    case AMDGPU_FAMILY_AI:
+    case AMDGPU_FAMILY_SI:
+    case AMDGPU_FAMILY_CI:
+    case AMDGPU_FAMILY_KV:
+    case AMDGPU_FAMILY_VI:
+    case AMDGPU_FAMILY_CZ:
+        return 16;
+    default:
+        Warn( "Unknown family id: %d - default to highest alignment\n", familyId );
+        return 16;
+    }
 }
