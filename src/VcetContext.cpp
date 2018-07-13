@@ -38,11 +38,13 @@
 VcetContext::VcetContext()
     : mDrmFd( -1 )
     , mDevice( 0 )
+    , mDeviceContext( 0 )
     , mMaxWidth( 0 )
     , mMaxHeight( 0 )
     , mBoFb( nullptr )
     , mBoBs( nullptr )
     , mBoCpb( nullptr )
+    , mIbIdx( 0 )
 {
     memset( mIbs, 0, sizeof(mIbs) );
 }
@@ -51,11 +53,11 @@ VcetContext::VcetContext()
 //---------------------------------------------------------------------------//
 VcetContext::~VcetContext()
 {
-    bool ret;
-    
-    ret = DestroySession();
-    WarnOn( !ret, "Failed to destroy VCE session\n" );
-    
+    bool err;
+
+    err = DestroySession();
+    WarnOn( err, "Failed to destroy VCE session\n" );
+
     delete mBoFb;
     mBoFb = nullptr;
 
@@ -64,6 +66,15 @@ VcetContext::~VcetContext()
 
     delete mBoCpb;
     mBoCpb = nullptr;
+
+    for ( int i = 0; i < kNumIbs; ++i ) {
+        delete mIbs[i];
+    }
+
+    if ( mDeviceContext ) {
+        amdgpu_cs_ctx_free( mDeviceContext );
+        mDeviceContext = 0;
+    }
 
     if ( mDevice ) {
         amdgpu_device_deinitialize(mDevice);

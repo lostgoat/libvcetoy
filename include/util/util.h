@@ -268,7 +268,7 @@ operator+(util::ScopeGuardOnSuccess, FunctionType&& fn)
 /**
  * This section contains utility functions for dealing with images
  *
- * Data is returned in a heap pointer that the caller is responsible for deleting.
+ * Data is returned in a heap pointer that the caller is responsible for freeing.
  *
  * Data is in RGBA format
  *
@@ -304,7 +304,7 @@ static inline uint8_t *GetBmpData( const char *path, uint32_t *pWidth, uint32_t 
     bpp = bitcount == 24 ? 3 : 4;
     tmpStride = ALIGN( width * bpp, 4 );
 
-    tmpData = new uint8_t[ tmpStride * height ];
+    tmpData = ( uint8_t* ) malloc( tmpStride * height );
     memset( tmpData, 0, sizeof(uint8_t) * tmpStride * height );
 
     // Get the file data
@@ -314,7 +314,7 @@ static inline uint8_t *GetBmpData( const char *path, uint32_t *pWidth, uint32_t 
 
     // Format it to a standard RGBA
     rgbaStride = ALIGN( width *  4 , 4 );
-    rgbaData = new uint8_t[ rgbaStride * height ];
+    rgbaData = ( uint8_t* ) malloc( rgbaStride * height );
     memset( rgbaData, 0, sizeof(uint8_t) * rgbaStride * height );
 
     for ( unsigned i = 0; i < height; ++i ) {
@@ -338,45 +338,63 @@ static inline uint8_t *GetBmpData( const char *path, uint32_t *pWidth, uint32_t 
     *pHeight = height;
     *pStrideBytes = rgbaStride;
 
-    fclose(bmp);
-    delete tmpData;
+    fclose( bmp );
+    free( tmpData );
+
     return rgbaData;
 
 error:
-    delete rgbaData;
-    delete tmpData;
     fclose( bmp );
+    free( tmpData );
+    free( rgbaData );
+
     return nullptr;
 }
 
 /**
  * Read a bitmap as NV21 data
  *
+ * Data is returned in a heap pointer that the caller is responsible for freeing.
+ *
+ * Data is in NV21 format
+ *
  * A very naive implementation
  *
- * Returns a heap pointer to NV21 data on success, nullptr on failure
+ * Returns: pointer to data on success, nullptr on failure
  */
-static inline uint8_t *GetNV21Data( const char *path, uint32_t *pWidth, uint32_t *pHeight )
+static inline uint8_t *GetNV21Data( const char *path, uint32_t widthAlignment, uint32_t heightAlignment, uint32_t *pWidth, uint32_t *pHeight )
 {
-    uint32_t width, height, strideBytes;
+    static const float kNv21Bpp = 1.5;
+
+    size_t size;
+    uint32_t width, height, bmpStrideBytes;
+    uint32_t alignedWidth, alignedHeight;
     uint8_t *yuvData = nullptr;
+    uint8_t *yData = nullptr;
+    uint8_t *uvData = nullptr;
     uint8_t *rgbaData = nullptr;
     int32_t R, G, B, Y, U, V;
-    int yIndex, uvIndex;
 
     FailOnTo( !path || !pWidth || !pHeight , error, "GetNV21Data: invalid parameter\n" );
 
-    rgbaData = GetBmpData( path, &width, &height, &strideBytes);
+    rgbaData = GetBmpData( path, &width, &height, &bmpStrideBytes);
     FailOnTo( !rgbaData, error, "GetNV21Data: Failed to read bmp\n" );
 
-    yIndex = 0;
-    uvIndex = width * height;
+    alignedWidth = ALIGN( width, widthAlignment );
+    alignedHeight = ALIGN( height, heightAlignment );
+    size = alignedWidth * alignedHeight * kNv21Bpp;
 
-    yuvData = new uint8_t[ width * height * 12 / 8 ];
-    memset( yuvData, 0 , sizeof(uint8_t) * width * height * 12 / 8 );
+    yuvData = ( uint8_t* )malloc( size );
+    memset( yuvData, 0 , size );
+
+    yData = yuvData;
+    uvData = yuvData + ( alignedWidth * alignedHeight );
 
     for ( unsigned i = 0; i < height; i++ ) {
-        uint8_t *rgbaRow = rgbaData + ( i * strideBytes );
+        uint8_t *rgbaRow = rgbaData + ( i * bmpStrideBytes );
+        uint8_t *yRow = yData + ( i * alignedWidth );
+        uint8_t *uvRow = uvData + ( i/2 * alignedWidth );
+        int uvIndex = 0;
 
         for ( unsigned j = 0; j < width; j++ ) {
             R = rgbaRow[ j * 4 ];
@@ -391,10 +409,10 @@ static inline uint8_t *GetNV21Data( const char *path, uint32_t *pWidth, uint32_t
             // NV21 is semi-planar:
             //  8 bit luminance sample plane, Y
             //  8 bit interleaved 2x2 subsampled chroma planes, V->U
-            yuvData[ yIndex++ ] = CLAMP( Y, 0, 255 );
+            yRow[ j ] = CLAMP( Y, 0, 255 );
             if ( i % 2 == 0 && j % 2 == 0) {
-                yuvData[ uvIndex++ ] = CLAMP( U, 0, 255 );
-                yuvData[ uvIndex++ ] = CLAMP( V, 0, 255 );
+                uvRow[ uvIndex++ ] = CLAMP( U, 0, 255 );
+                uvRow[ uvIndex++ ] = CLAMP( V, 0, 255 );
             }
         }
     }
@@ -402,12 +420,12 @@ static inline uint8_t *GetNV21Data( const char *path, uint32_t *pWidth, uint32_t
     *pWidth = width;
     *pHeight = height;
 
-    delete rgbaData;
+    free( rgbaData );
     return yuvData;
 
 error:
-    delete rgbaData;
-    delete yuvData;
+    free( rgbaData );
+    free( yuvData );
     return nullptr;
 }
 

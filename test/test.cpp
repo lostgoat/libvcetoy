@@ -115,42 +115,56 @@ class VcetTestFrames : public VcetTest
             uint32_t mHeight;
             uint32_t mAlignedWidth;
             uint32_t mAlignedHeight;
+            uint32_t mWidthAlignment;
+            uint32_t mHeightAlignment;
             uint64_t mSize;
             VcetBoHandle mBo;
+            uint8_t *mBoData;
+
+            void DumpToFile()
+            {
+                static int id = 0;
+                char path[255];
+
+                sprintf( path, "frame_%d-%d-%d.dump", id++, mAlignedWidth, mAlignedHeight );
+
+                FILE *file = fopen( path, "wb+");
+                fwrite( mBoData, mSize, sizeof(uint8_t), file );
+
+            }
 
             void FromBitmap( VcetCtxHandle ctx, const char *path )
             {
-                uint8_t *pBoData = nullptr;
-                uint8_t *pFrameData = util::GetNV21Data( path, &mWidth, &mHeight );
+                uint8_t *pFrameData = util::GetNV21Data( path, mWidthAlignment, mHeightAlignment, &mWidth, &mHeight );
 
                 ASSERT_NE( (uint32_t)0, mWidth );
                 ASSERT_NE( (uint32_t)0, mHeight );
                 ASSERT_NE( nullptr, pFrameData );
 
-                // TODO: this might need some alignment?
                 ASSERT_TRUE( VcetBoCreateImage( ctx, mWidth, mHeight, true, &mBo, &mAlignedWidth, &mAlignedHeight ) );
                 ASSERT_NE( nullptr, mBo );
 
-                ASSERT_TRUE( VcetBoMap( mBo, &pBoData ) );
-                ASSERT_NE( nullptr, pBoData );
+                ASSERT_TRUE( VcetBoMap( mBo, &mBoData ) );
+                ASSERT_NE( nullptr, mBoData );
 
                 mSize = mAlignedWidth * mAlignedHeight * 1.5;
-                memset( pBoData, 0, mSize );
+                memcpy( mBoData, pFrameData, mSize );
 
-                //uint8_t *lumaData = pBoData;
-                //for ( int i = 0; i < mHeight; ++i ) {
-                    //uint8_t *yRow = lumaData + ( i * )
-                    //memcpy( yRow, pFrameData, mAlignedWidth );
-                //}
+                DumpToFile();
 
-                delete pFrameData;
+                free( pFrameData );
             }
 
-            Frame()
+            Frame( uint32_t alignWidth, uint32_t alignHeight )
                 : mWidth( 0 )
                 , mHeight( 0 )
+                , mAlignedWidth( 0 )
+                , mAlignedHeight( 0 )
+                , mWidthAlignment( alignWidth )
+                , mHeightAlignment( alignHeight )
                 , mSize( 0 )
                 , mBo( nullptr )
+                , mBoData( nullptr )
             {}
 
             ~Frame()
@@ -165,7 +179,7 @@ class VcetTestFrames : public VcetTest
             VcetTest::SetUp();
 
             for ( int i = 0; i < kFrameMax; ++i ) {
-                mFrame[i] = new Frame;
+                mFrame[i] = new Frame( mWidthAlignment, mHeightAlignment );
             }
 
             mFrame[0]->FromBitmap( mCtx, "frames/001.bmp" );

@@ -116,7 +116,7 @@ bool VcetBo::Allocate( uint32_t width, uint32_t height, bool mappable )
 {
     bool ret;
     uint32_t alignedWidth = ALIGN( width, GetWidthAlignment() );
-    uint32_t alignedHeight = ALIGN( height, GetWidthAlignment() );
+    uint32_t alignedHeight = ALIGN( height, GetHeightAlignment() );
     uint64_t nv21Size = alignedWidth * alignedHeight * kNv21Bpp;
 
     ret = Allocate( nv21Size, mappable, kDefaultAlignment );
