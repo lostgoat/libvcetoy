@@ -1,16 +1,36 @@
 libvcetoy
 =========
 
-Toy project to play around with new VCE support in amdgpu:
-https://cgit.freedesktop.org/mesa/drm/commit/?id=cb850ceb0f25117bccb557545a3ea7a54472df80
+Toy project to interact with amdgpu's VCE features.
 
-Also testing the waters with my first meson project.
+Its main purpose is to expose a small interface for calculating the motion
+vectors between two images using the VCE core in AMD GPUs.
 
-Extra Build Targets
--------------------
+This project is a quick and dirty initial exploration to play with the
+hardware. Beware of messy code inside.
 
-Not implemented yet.
+Features
+--------
+  - [ ] Basic support for motion vector calculations
+    - [x] Submit VCE commands
+    - [x] Submit VCE MV command
+    - [ ] Macro block size
+  - [ ] Vulkan Interop Support
 
-The following extra build targets are supported:
- * format: formats the code in place
- * cppcheck: run some basic static analysis on the code
+Building
+--------
+
+```
+mkdir build/
+cd build/
+meson ..
+ninja
+```
+
+Tests
+-----
+
+```
+cd build/test
+./vcetoy_test # Needs vulkan and a local X display
+```
