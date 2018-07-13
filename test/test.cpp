@@ -26,6 +26,20 @@
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1080
 
+static void DumpDataToFile( uint8_t *pData, uint64_t size, const char *prefix, uint32_t width = 0, uint32_t height = 0 )
+{
+    static int id = 0;
+    char path[255];
+
+    if ( width && height )
+        sprintf( path, "%s_%03d-%d-%d.dump", prefix, id++, width, height );
+    else
+        sprintf( path, "%s_%03d.dump", prefix, id++ );
+
+    FILE *file = fopen( path, "wb+");
+    fwrite( pData, size, sizeof(uint8_t), file );
+}
+
 class VcetTest : public ::testing::Test
 {
     protected:
@@ -38,8 +52,9 @@ class VcetTest : public ::testing::Test
             ASSERT_TRUE( VcetContextCreate( &mCtx, MAX_WIDTH, MAX_HEIGHT ) );
             ASSERT_NE( mCtx, nullptr );
 
-            ASSERT_TRUE( VcetBoCreate( mCtx, MAX_WIDTH * MAX_HEIGHT * 1.5 , true, &mMappableBo ) );
-            ASSERT_TRUE( VcetBoCreate( mCtx, MAX_WIDTH * MAX_HEIGHT * 1.5, false, &mUnmappableBo ) );
+            mBoSize = MAX_WIDTH * MAX_HEIGHT * 1.5;
+            ASSERT_TRUE( VcetBoCreate( mCtx, mBoSize, true, &mMappableBo ) );
+            ASSERT_TRUE( VcetBoCreate( mCtx, mBoSize, false, &mUnmappableBo ) );
             ASSERT_TRUE( VcetBoCreateImage( mCtx, 1, 1, true, &mTinyImage, &mWidthAlignment, &mHeightAlignment ) );
             ASSERT_NE( mMappableBo, nullptr );
             ASSERT_NE( mUnmappableBo, nullptr );
@@ -60,11 +75,14 @@ class VcetTest : public ::testing::Test
             ASSERT_EQ( mCtx, nullptr );
         }
 
+
+
         VcetCtxHandle mCtx;
         VcetBoHandle mMappableBo;
         VcetBoHandle mUnmappableBo;
         VcetBoHandle mTinyImage;
 
+        uint32_t mBoSize;
         uint32_t mWidthAlignment;
         uint32_t mHeightAlignment;
 };
@@ -123,14 +141,7 @@ class VcetTestFrames : public VcetTest
 
             void DumpToFile()
             {
-                static int id = 0;
-                char path[255];
-
-                sprintf( path, "frame_%d-%d-%d.dump", id++, mAlignedWidth, mAlignedHeight );
-
-                FILE *file = fopen( path, "wb+");
-                fwrite( mBoData, mSize, sizeof(uint8_t), file );
-
+                DumpDataToFile( mBoData, mSize, "frame", mAlignedWidth, mAlignedHeight );
             }
 
             void FromBitmap( VcetCtxHandle ctx, const char *path )
@@ -207,9 +218,36 @@ TEST_F(VcetTestFrames, Sanity)
 
 TEST_F(VcetTestFrames, CalculateMv )
 {
+    uint8_t *mvData = nullptr;
+
+    ASSERT_EQ( true, VcetBoMap( mMappableBo, &mvData ) );
+    memset( mvData, 0, mBoSize );
+
     ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
                                   mMappableBo,
                                   mFrame[0]->mWidth, mFrame[0]->mHeight ));
+
+    DumpDataToFile( mvData, mBoSize, "mv[0-1]", MAX_WIDTH, MAX_HEIGHT );
+}
+
+TEST_F(VcetTestFrames, CalculateMvNoMovement )
+{
+    uint8_t *mvData = nullptr;
+
+    ASSERT_EQ( true, VcetBoMap( mMappableBo, &mvData ) );
+    memset( mvData, 0, mBoSize );
+
+    // Two equal frames should produce a zero motion vector
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[3]->mBo, mFrame[4]->mBo,
+                                  mMappableBo,
+                                  mFrame[3]->mWidth, mFrame[4]->mHeight ));
+
+    uint64_t sum = 0;
+    for ( uint32_t i = 0; i < mBoSize; ++i ) {
+        sum += mvData[i];
+    }
+
+    ASSERT_EQ( 0u, sum );
 }
 
 TEST_F(VcetTestFrames, MultipleSubmissions )
