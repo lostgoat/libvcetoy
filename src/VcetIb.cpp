@@ -227,7 +227,7 @@ void VcetIb::WriteSession()
 {
     Write( 0x0000000c );
     Write( 0x00000001 );
-    Write( 0x400c0001 );
+    Write( mContext->GetSessionId() );
 }
 
 //---------------------------------------------------------------------------//

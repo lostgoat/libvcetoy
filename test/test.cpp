@@ -48,6 +48,7 @@ class VcetTest : public ::testing::Test
             mCtx = nullptr;
             mMappableBo = nullptr;
             mUnmappableBo = nullptr;
+            mTinyImage = nullptr;
 
             ASSERT_TRUE( VcetContextCreate( &mCtx, MAX_WIDTH, MAX_HEIGHT ) );
             ASSERT_NE( mCtx, nullptr );

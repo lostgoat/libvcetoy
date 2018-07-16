@@ -35,10 +35,19 @@
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
+static uint32_t GenSessionId()
+{
+    static uint32_t sNextSessionId = 1;
+    return  ( 0xA3D << 16 ) | sNextSessionId++;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 VcetContext::VcetContext()
     : mDrmFd( -1 )
     , mDevice( 0 )
     , mDeviceContext( 0 )
+    , mSesionId( GenSessionId() )
     , mMaxWidth( 0 )
     , mMaxHeight( 0 )
     , mBoFb( nullptr )

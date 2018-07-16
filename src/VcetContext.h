@@ -45,6 +45,7 @@ class VcetContext
 
         uint32_t GetIpType();
         uint32_t GetFamilyId();
+        uint32_t GetSessionId() { return mSesionId; }
 
         VcetBo *GetFb() { return mBoFb; };
         VcetBo *GetBs() { return mBoBs; };
@@ -68,6 +69,8 @@ class VcetContext
         amdgpu_device_handle mDevice;
         amdgpu_context_handle mDeviceContext;
 
+
+        uint32_t mSesionId;
         uint32_t mMaxWidth;
         uint32_t mMaxHeight;
 
