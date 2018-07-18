@@ -173,22 +173,40 @@ error:
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
+bool VcetBo::IsWidthAligned( VcetContext *ctx, uint32_t width )
+{
+    uint32_t alignment = GetWidthAlignment( ctx );
+    return ( width % alignment ) == 0;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBo::IsHeightAligned( VcetContext *ctx, uint32_t width )
+{
+    uint32_t alignment = GetWidthAlignment( ctx );
+    return ( width % alignment ) == 0;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 uint32_t VcetBo::GetWidthAlignment()
 {
-    return GetWidthAlignment( mContext->GetFamilyId() );
+    return GetWidthAlignment( mContext );
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 uint32_t VcetBo::GetHeightAlignment()
 {
-    return GetHeightAlignment( mContext->GetFamilyId() );
+    return GetHeightAlignment( mContext );
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetBo::GetWidthAlignment( uint32_t familyId )
+uint32_t VcetBo::GetWidthAlignment( VcetContext *ctx )
 {
+    uint32_t familyId = ctx->GetFamilyId();
+
     switch ( familyId ) {
     case AMDGPU_FAMILY_RV:
     case AMDGPU_FAMILY_AI:
@@ -207,8 +225,10 @@ uint32_t VcetBo::GetWidthAlignment( uint32_t familyId )
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetBo::GetHeightAlignment( uint32_t familyId )
+uint32_t VcetBo::GetHeightAlignment( VcetContext *ctx )
 {
+    uint32_t familyId = ctx->GetFamilyId();
+
     switch ( familyId ) {
     case AMDGPU_FAMILY_RV:
     case AMDGPU_FAMILY_AI:

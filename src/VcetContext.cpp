@@ -48,8 +48,10 @@ VcetContext::VcetContext()
     , mDevice( 0 )
     , mDeviceContext( 0 )
     , mSesionId( GenSessionId() )
-    , mMaxWidth( 0 )
-    , mMaxHeight( 0 )
+    , mWidth( 0 )
+    , mHeight( 0 )
+    , mAlignedWidth( 0 )
+    , mAlignedHeight( 0 )
     , mBoFb( nullptr )
     , mBoBs( nullptr )
     , mBoCpb( nullptr )
@@ -98,14 +100,12 @@ VcetContext::~VcetContext()
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetContext::Init( uint32_t maxWidth, uint32_t maxHeight )
+bool VcetContext::Init( uint32_t width, uint32_t height )
 {
     int err;
     uint32_t devMajor, devMinor;
 
-    FailOnTo( !maxWidth || !maxHeight, error, "Bad dimensions\n" );
-    mMaxWidth = maxWidth;
-    mMaxHeight = maxHeight;
+    FailOnTo( !width || !height, error, "Bad dimensions\n" );
 
     mDrmFd = drmOpenWithType( "amdgpu", NULL, DRM_NODE_RENDER );
     FailOnTo( mDrmFd < 0, error, "Failed to open amdgpu fd\n" );
@@ -115,6 +115,11 @@ bool VcetContext::Init( uint32_t maxWidth, uint32_t maxHeight )
 
     err = amdgpu_query_gpu_info( mDevice, &mGpuInfo );
     FailOnTo( err, error, "Failed to query gpu info\n" );
+
+    mWidth = width;
+    mHeight = height;
+    mAlignedWidth = ALIGN( mWidth, VcetBo::GetWidthAlignment( this ) );
+    mAlignedHeight = ALIGN( mHeight, VcetBo::GetHeightAlignment( this ) );
 
     err = amdgpu_cs_ctx_create( mDevice, &mDeviceContext );
     FailOnTo( err, error, "Failed to create device context\n" );
@@ -224,7 +229,7 @@ int VcetContext::CreateSession()
     ib = GetNextIb();
     FailOnTo( !ib, error, "Invalid ib\n" );
 
-    ret = ib->WriteCreateSession();
+    ret = ib->WriteCreateSession( mAlignedWidth, mAlignedHeight );
     FailOnTo( !ret, error, "Failed to prepare create session ib\n" );
 
     ret = Submit( ib );
@@ -278,10 +283,7 @@ uint64_t VcetContext::GetBsSize()
 //---------------------------------------------------------------------------//
 uint64_t VcetContext::GetCpbSize()
 {
-    uint32_t alignedWidth = ALIGN( mMaxWidth, VcetBo::GetWidthAlignment( GetFamilyId() ) );
-    uint32_t alignedHeight = ALIGN( mMaxWidth, VcetBo::GetHeightAlignment( GetFamilyId() ) );
-
-    return alignedWidth * alignedHeight * VcetBo::kNv21Bpp * kNumCpbBuffers;
+    return mAlignedWidth * mAlignedHeight * VcetBo::kNv21Bpp * kNumCpbBuffers;
 }
 
 //---------------------------------------------------------------------------//
@@ -306,7 +308,7 @@ bool VcetContext::CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo,
     VcetIb *ib = nullptr;
 
     FailOnTo( !oldFrame || !newFrame || !mvBo, error, "Bad bo\n" );
-    FailOnTo( !width || width > mMaxWidth || !height || height > mMaxWidth, error, "Invalid frame dimensions\n" );
+    FailOnTo( width != mWidth || height != mHeight, error, "Invalid frame dimensions\n" );
 
     ib = GetNextIb();
     FailOnTo( !ib, error, "Invalid ib\n" );

@@ -134,14 +134,20 @@ bool VcetIb::WriteNop( uint32_t count )
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetIb::WriteCreateSession()
+bool VcetIb::WriteCreateSession( uint32_t width, uint32_t height )
 {
+    FailOnTo( !VcetBo::IsWidthAligned( mContext, width ), error, "unaligned width\n" );
+    FailOnTo( !VcetBo::IsHeightAligned( mContext, height ), error, "unaligned height\n" );
+
     WriteSession();
     WriteTaskInfo( 0 );
-    WriteCreate();
+    WriteCreate( width, height );
     WriteFeedbackBuffer();
-    
+
     return true;
+
+error:
+    return false;
 }
 
 //---------------------------------------------------------------------------//
@@ -152,7 +158,7 @@ bool VcetIb::WriteoDestroySession()
     WriteTaskInfo( 1 );
     WriteFeedbackBuffer();
     WriteDestroy();
-    
+
     return true;
 }
 
@@ -197,20 +203,24 @@ void VcetIb::WriteConfigInit()
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-void VcetIb::WriteCreate()
+void VcetIb::WriteCreate( uint32_t width, uint32_t height )
 {
     Write( 0x00000030 );    // 00
-    Write( 0x01000001 );    // 02
-    Write( 0x00000000 );    // 03
-    Write( 0x00000042 );    // 04
-    Write( 0x0000002a );    // 05
-    Write( 0x00000000 );    // 06
-    Write( 0x000000a0 );    // 07
-    Write( 0x00000080 );    // 08
-    Write( 0x000000a0 );    // 10
-    Write( 0x01000001 );    // 11 disableTwoInstance -> TODO: needs per family config
-    Write( 0x00000010 );    // 12
-    Write( 0x00000201 );    // 13
+    Write( 0x01000001 );    // 01
+    Write( 0x00000000 );    // 02
+    Write( 0x00000042 );    // 03
+    Write( 0x0000002a );    // 04
+    Write( 0x00000000 );    // 05
+    Write( width );         // 06 enc_image_width
+    Write( height );        // 07 enc_image_height
+    Write( width );         // 08 enc_ref_pic_luma_pitch
+    Write( width );         // 09 enc_ref_pic_chroma_pitch
+    Write( height / 8 );    // 10 enc_ref_y_height_in_qw
+
+    if ( mContext->GetFamilyId() >= AMDGPU_FAMILY_AI)
+        Write( 0x01000001 ); // disableTwoInstance
+    else
+        Write( 0x01000201 ); // disableTwoInstance
 }
 
 //---------------------------------------------------------------------------//
@@ -426,20 +436,20 @@ void VcetIb::WriteMvCmd( VcetBo *refFrame, VcetBo *mvBo, uint32_t width, uint32_
     uint64_t refAddr = refFrame->GetGpuAddr();
     uint64_t mvAddr = mvBo->GetGpuAddr();
 
-    Write( 0x00000038 );
-    Write( 0x0500000d );
-    Write( UPPER32( refAddr ) );
-    Write( LOWER32( refAddr ) );
-    Write( width );
-    Write( width ); // TODO should this be height?
-    Write( width * height ); // TODO: Size in pixels? Other places seem to use bytes
-    Write( UPPER32( mvAddr ) );
-    Write( LOWER32( mvAddr ) );
-    Write( 0x00000000 );
-    Write( 0x00000000 );
-    Write( 0x00000000 );
-    Write( 0x00000000 );
-    Write( 0x00000000 );
+    Write( 0x00000038 );            //
+    Write( 0x0500000d );            //
+    Write( UPPER32( refAddr ) );    //
+    Write( LOWER32( refAddr ) );    //
+    Write( width );                 // luma pitch
+    Write( width );                 // chroma pitch
+    Write( width * height );        // chroma offset from refAddr
+    Write( UPPER32( mvAddr ) );     //
+    Write( LOWER32( mvAddr ) );     //
+    Write( 0x00000000 );            //
+    Write( 0x00000000 );            //
+    Write( 0x00000000 );            //
+    Write( 0x00000000 );            //
+    Write( 0x00000000 );            //
 }
 
 //---------------------------------------------------------------------------//
@@ -462,9 +472,9 @@ void VcetIb::WriteEncodeCmd( VcetBo *frame, uint32_t width, uint32_t height )
     Write( LOWER32( frameAddr ) );    // 10
     Write( UPPER32( frameChromaAddr ) );    // 11
     Write( LOWER32( frameChromaAddr ) );    // 12
-    Write( height );        // 13
-    Write( width );         // 14
-    Write( width );         // 15
+    Write( height );        // 13 enc_input_frame_y_pitch
+    Write( width );         // 14 enc_input_pic_luma_pitch
+    Write( width );         // 15 enc_input_pic_chroma_pitch
     /* encDisableMBOffloading-encDisableTwoPipeMode-encInputPicArrayMode-encInputPicAddrMode */
     Write( 0x01010000 );    // 16
     Write( 0x00000000 );    // 17

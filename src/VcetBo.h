@@ -34,8 +34,10 @@ class VcetBo
 
     public:
         static constexpr float kNv21Bpp = 1.5;
-        static uint32_t GetWidthAlignment( uint32_t familyId );
-        static uint32_t GetHeightAlignment( uint32_t familyId );
+        static uint32_t GetWidthAlignment( VcetContext *ctx );
+        static uint32_t GetHeightAlignment( VcetContext *ctx );
+        static bool IsWidthAligned( VcetContext *ctx, uint32_t width );
+        static bool IsHeightAligned( VcetContext *ctx, uint32_t width );
 
     public:
 

@@ -41,12 +41,12 @@ typedef VcetBoProxy* VcetBoHandle;
  * Create a libvcetoy context
  *
  * @param pCtx      On success, populated with the libvcetoy context handle
- * @param maxWidth  The maximum frame width the app expects to handle
- * @param maxHeight The maximum frame height the app expects to handle
+ * @param width     The frame width the app expects to handle
+ * @param height    The frame height the app expects to handle
  *
  * @return true on success, false otherwise
  */
-bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeight );
+bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t width, uint32_t height );
 
 /**
  * Destroy a libvcetoy context

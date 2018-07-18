@@ -35,7 +35,7 @@ class VcetContext
         VcetContext( );
         ~VcetContext();
 
-        bool Init( uint32_t maxWidth, uint32_t maxHeight );
+        bool Init( uint32_t width, uint32_t height );
         bool IsMvDumpSupported();
 
         bool CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height );
@@ -71,8 +71,10 @@ class VcetContext
 
 
         uint32_t mSesionId;
-        uint32_t mMaxWidth;
-        uint32_t mMaxHeight;
+        uint32_t mWidth;
+        uint32_t mHeight;
+        uint32_t mAlignedWidth;
+        uint32_t mAlignedHeight;
 
         VcetBo *mBoFb;
         VcetBo *mBoBs;

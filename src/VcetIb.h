@@ -48,7 +48,7 @@ class VcetIb
         bool Reset();
         bool WriteNop( uint32_t count );
         bool WriteCalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height );
-        bool WriteCreateSession();
+        bool WriteCreateSession( uint32_t width, uint32_t height );
         bool WriteoDestroySession();
 
         bool WaitFromCompletion( uint64_t timeout = AMDGPU_TIMEOUT_INFINITE );
@@ -65,7 +65,7 @@ class VcetIb
         void Write( uint32_t cmd );
         void Write( uint32_t *pCmd, uint32_t count );
 
-        void WriteCreate();
+        void WriteCreate( uint32_t width, uint32_t height );
         void WriteDestroy();
         void WriteSession();
         void WriteTaskInfo( uint32_t id );

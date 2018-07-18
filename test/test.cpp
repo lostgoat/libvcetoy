@@ -50,7 +50,7 @@ class VcetTest : public ::testing::Test
             mUnmappableBo = nullptr;
             mTinyImage = nullptr;
 
-            ASSERT_TRUE( VcetContextCreate( &mCtx, MAX_WIDTH, MAX_HEIGHT ) );
+            ASSERT_TRUE( VcetContextCreate( &mCtx, GetWidth(), GetHeight() ) );
             ASSERT_NE( mCtx, nullptr );
 
             mBoSize = MAX_WIDTH * MAX_HEIGHT * 1.5;
@@ -76,7 +76,15 @@ class VcetTest : public ::testing::Test
             ASSERT_EQ( mCtx, nullptr );
         }
 
+        virtual uint32_t GetWidth()
+        {
+            return MAX_WIDTH;
+        }
 
+        virtual uint32_t GetHeight()
+        {
+            return MAX_HEIGHT;
+        }
 
         VcetCtxHandle mCtx;
         VcetBoHandle mMappableBo;
@@ -188,6 +196,7 @@ class VcetTestFrames : public VcetTest
 
         virtual void SetUp()
         {
+            GetDimensionData( "frames/001.bmp" );
             VcetTest::SetUp();
 
             for ( int i = 0; i < kFrameMax; ++i ) {
@@ -197,7 +206,7 @@ class VcetTestFrames : public VcetTest
             mFrame[0]->FromBitmap( mCtx, "frames/001.bmp" );
             mFrame[1]->FromBitmap( mCtx, "frames/002.bmp" );
             mFrame[2]->FromBitmap( mCtx, "frames/003.bmp" );
-            mFrame[3]->FromBitmap( mCtx, "frames/pattern.bmp" );
+            mFrame[3]->FromBitmap( mCtx, "frames/001.bmp" );
             mFrame[4]->FromBitmap( mCtx, "frames/pattern.bmp" );
         }
 
@@ -210,7 +219,25 @@ class VcetTestFrames : public VcetTest
             VcetTest::TearDown();
         }
 
+        virtual uint32_t GetWidth()
+        {
+            return mWidth;
+        }
+
+        virtual uint32_t GetHeight()
+        {
+            return mHeight;
+        }
+
+        void GetDimensionData( const char *path )
+        {
+            uint32_t stride;
+            uint8_t *data = util::GetBmpData( path, &mWidth, &mHeight, &stride );
+            delete data;
+        }
+
         Frame* mFrame[ kFrameMax ];
+        uint32_t mWidth, mHeight;
 };
 
 TEST_F(VcetTestFrames, Sanity)
@@ -224,7 +251,7 @@ TEST_F(VcetTestFrames, CalculateMv )
     ASSERT_EQ( true, VcetBoMap( mMappableBo, &mvData ) );
     memset( mvData, 0, mBoSize );
 
-    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[3]->mBo,
                                   mMappableBo,
                                   mFrame[0]->mWidth, mFrame[0]->mHeight ));
 
@@ -239,9 +266,9 @@ TEST_F(VcetTestFrames, CalculateMvNoMovement )
     memset( mvData, 0, mBoSize );
 
     // Two equal frames should produce a zero motion vector
-    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[3]->mBo, mFrame[4]->mBo,
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[3]->mBo,
                                   mMappableBo,
-                                  mFrame[3]->mWidth, mFrame[4]->mHeight ));
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
 
     uint64_t sum = 0;
     for ( uint32_t i = 0; i < mBoSize; ++i ) {
