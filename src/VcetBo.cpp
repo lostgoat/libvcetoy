@@ -183,7 +183,7 @@ bool VcetBo::IsWidthAligned( VcetContext *ctx, uint32_t width )
 //---------------------------------------------------------------------------//
 bool VcetBo::IsHeightAligned( VcetContext *ctx, uint32_t width )
 {
-    uint32_t alignment = GetWidthAlignment( ctx );
+    uint32_t alignment = GetHeightAlignment( ctx );
     return ( width % alignment ) == 0;
 }
 

@@ -20,7 +20,7 @@ project(
     ['cpp'],
     version : '0.0.1',
     license : 'GPL3',
-    meson_version : '>= 0.43',
+    meson_version : '>= 0.47',
     default_options : ['cpp_std=c++11']
 )
 

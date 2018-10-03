@@ -344,7 +344,9 @@ static inline uint8_t *GetBmpData( const char *path, uint32_t *pWidth, uint32_t 
     return rgbaData;
 
 error:
-    fclose( bmp );
+    if ( bmp )
+        fclose( bmp );
+
     free( tmpData );
     free( rgbaData );
 

@@ -255,7 +255,7 @@ TEST_F(VcetTestFrames, CalculateMv )
                                   mMappableBo,
                                   mFrame[0]->mWidth, mFrame[0]->mHeight ));
 
-    DumpDataToFile( mvData, mBoSize, "mv[0-1]", MAX_WIDTH, MAX_HEIGHT );
+    DumpDataToFile( mvData, mBoSize, "mv01", MAX_WIDTH, MAX_HEIGHT );
 }
 
 TEST_F(VcetTestFrames, CalculateMvNoMovement )
@@ -350,4 +350,11 @@ class VulkanTest : public ::testing::Test {
 
 TEST_F(VulkanTest, Sanity)
 {
+}
+
+TEST_F(VulkanTest, CreateImage)
+{
+    VkImage pImage = VK_NULL_HANDLE;
+    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, &pImage ) );
+    ASSERT_NE( 0, VK_NULL_HANDLE );
 }

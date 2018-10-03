@@ -167,6 +167,8 @@ bool VcetContext::IsMvDumpSupported()
             return true;
     }
 
+    return true;
+
 error:
     // Assume we don't support anything else
     return false;
