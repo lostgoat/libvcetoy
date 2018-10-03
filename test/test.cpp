@@ -196,18 +196,18 @@ class VcetTestFrames : public VcetTest
 
         virtual void SetUp()
         {
-            GetDimensionData( "frames/001.bmp" );
+            GetDimensionData( "test/frames/001.bmp" );
             VcetTest::SetUp();
 
             for ( int i = 0; i < kFrameMax; ++i ) {
                 mFrame[i] = new Frame( mWidthAlignment, mHeightAlignment );
             }
 
-            mFrame[0]->FromBitmap( mCtx, "frames/001.bmp" );
-            mFrame[1]->FromBitmap( mCtx, "frames/002.bmp" );
-            mFrame[2]->FromBitmap( mCtx, "frames/003.bmp" );
-            mFrame[3]->FromBitmap( mCtx, "frames/001.bmp" );
-            mFrame[4]->FromBitmap( mCtx, "frames/pattern.bmp" );
+            mFrame[0]->FromBitmap( mCtx, "test/frames/001.bmp" );
+            mFrame[1]->FromBitmap( mCtx, "test/frames/002.bmp" );
+            mFrame[2]->FromBitmap( mCtx, "test/frames/003.bmp" );
+            mFrame[3]->FromBitmap( mCtx, "test/frames/001.bmp" );
+            mFrame[4]->FromBitmap( mCtx, "test/frames/pattern.bmp" );
         }
 
         virtual void TearDown()
