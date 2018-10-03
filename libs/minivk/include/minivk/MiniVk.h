@@ -88,6 +88,8 @@ class MiniVk
         VkQueue mVkQueue;
         std::vector<VkQueueFamilyProperties> mVkQueueFamilyProperties;
         uint32_t mQueueFamilyIdx;
+        uint32_t mMemoryVramIdx;
+        uint32_t mMemoryMappableIdx;
 
         VkCommandPool mVkCmdPool;
         VkCommandBuffer mVkCmdBuffer[ k_unCmdBufferCount ];
@@ -114,7 +116,31 @@ class MiniVk
         int GetQueueFamilyIndex( VkQueueFlagBits bits );
         int GetMemoryType( uint32_t typeBits, VkMemoryPropertyFlags properties );
 
+#define VK_DEVICE_EXT_FN(name) PFN_vk##name mPfn##name;
+#include "vkextensionfn.h"
+#undef VK_DEVICE_EXT_FN
+
 	public:
+        SdlWindow *GetWindow() { return &mSdlWindow; }
+
+        struct MiniVkImage {
+            VkImage pImage;
+            VkDeviceMemory pMemory;
+            int fd;
+
+            bool bMappable;
+            void *pCpuAddr;
+        };
+
+        struct MiniVkBuffer {
+            VkBuffer pBuffer;
+            VkDeviceMemory pMemory;
+            int fd;
+
+            bool bMappable;
+            void *pCpuAddr;
+        };
+
         VkCommandBuffer GetCurrentCommandBuffer();
         bool BeginCommandBuffer();
         bool EndCommandBuffer();
@@ -132,5 +158,11 @@ class MiniVk
 		void Blit( VkImage srcImage, VkImageLayout srcLayout, uint32_t srcWidth, uint32_t srcHeight, VkImage targetImage, VkImageLayout targetLayout, uint32_t targetOffsetX, uint32_t targetOffsetY, uint32_t targetWidth, uint32_t targetHeight );
         void ClearImage( VkImage pImage, VkImageLayout eLayout, float flRed, float flGreen, float flBlue, float flAlpha );
 
-		SdlWindow *GetWindow() { return &mSdlWindow; }
+        bool CreateImage( uint32_t unWidth, uint32_t unHeight, VkFormat eFormat, bool bMappable, MiniVkImage **ppImage );
+        void FreeImage( MiniVkImage **ppImage );
+        uint8_t *MapImage( MiniVkImage *pImage );
+
+        bool CreateBuffer( uint32_t unSize, bool bMappable, MiniVkBuffer **ppBuffer );
+        void FreeBuffer( MiniVkBuffer **ppBuffer );
+        uint8_t *MapBuffer( MiniVkBuffer *pBuffer );
 };

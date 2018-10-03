@@ -352,9 +352,97 @@ TEST_F(VulkanTest, Sanity)
 {
 }
 
-TEST_F(VulkanTest, CreateImage)
+TEST_F(VulkanTest, CreateImageVram)
 {
-    VkImage pImage = VK_NULL_HANDLE;
-    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, &pImage ) );
-    ASSERT_NE( 0, VK_NULL_HANDLE );
+    MiniVk::MiniVkImage *pImage;
+    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, false, &pImage ) );
+    ASSERT_NE( nullptr, pImage );
+    ASSERT_NE( nullptr, pImage->pImage );
+    ASSERT_NE( nullptr, pImage->pMemory );
+    ASSERT_GT( pImage->fd, -1 );
+
+    miniVk.FreeImage( &pImage );
+    ASSERT_EQ( nullptr, pImage );
+}
+
+TEST_F(VulkanTest, CreateImageMappable)
+{
+    MiniVk::MiniVkImage *pImage;
+    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, true, &pImage ) );
+    ASSERT_NE( nullptr, pImage );
+    ASSERT_NE( nullptr, pImage->pImage );
+    ASSERT_NE( nullptr, pImage->pMemory );
+    ASSERT_GT( pImage->fd, -1 );
+
+    uint8_t *pData = miniVk.MapImage( pImage );
+    ASSERT_NE( nullptr, pData );
+    *pData = 1;
+
+    miniVk.FreeImage( &pImage );
+    ASSERT_EQ( nullptr, pImage );
+}
+
+TEST_F(VulkanTest, CreateBufferVram)
+{
+    MiniVk::MiniVkBuffer *pBuffer;
+    ASSERT_TRUE( miniVk.CreateBuffer( 100, false, &pBuffer ) );
+    ASSERT_NE( nullptr, pBuffer );
+    ASSERT_NE( nullptr, pBuffer->pBuffer );
+    ASSERT_NE( nullptr, pBuffer->pMemory );
+    ASSERT_GT( pBuffer->fd, -1 );
+
+    miniVk.FreeBuffer( &pBuffer );
+    ASSERT_EQ( nullptr, pBuffer );
+}
+
+TEST_F(VulkanTest, CreateBufferMappable)
+{
+    size_t bufSize = 100;
+
+    MiniVk::MiniVkBuffer *pBuffer;
+    ASSERT_TRUE( miniVk.CreateBuffer( bufSize, true, &pBuffer ) );
+    ASSERT_NE( nullptr, pBuffer );
+    ASSERT_NE( nullptr, pBuffer->pBuffer );
+    ASSERT_NE( nullptr, pBuffer->pMemory );
+    ASSERT_GT( pBuffer->fd, -1 );
+
+    uint8_t *pData = miniVk.MapBuffer( pBuffer );
+    ASSERT_NE( nullptr, pData );
+    memset( pData, 1, bufSize );
+    *pData = 1;
+
+    miniVk.FreeBuffer( &pBuffer );
+    ASSERT_EQ( nullptr, pBuffer );
+}
+
+TEST_F(VulkanTest, MapUnmappableBuffer)
+{
+    MiniVk::MiniVkBuffer *pBuffer;
+    ASSERT_TRUE( miniVk.CreateBuffer( 100, false, &pBuffer ) );
+    ASSERT_NE( nullptr, pBuffer );
+    ASSERT_NE( nullptr, pBuffer->pBuffer );
+    ASSERT_NE( nullptr, pBuffer->pMemory );
+    ASSERT_GT( pBuffer->fd, -1 );
+
+    uint8_t *pData = miniVk.MapBuffer( pBuffer );
+    ASSERT_EQ( nullptr, pData );
+
+    miniVk.FreeBuffer( &pBuffer );
+    ASSERT_EQ( nullptr, pBuffer );
+}
+
+TEST_F(VulkanTest, MapUnmappableImage)
+{
+    MiniVk::MiniVkImage *pImage;
+    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, false, &pImage ) );
+    ASSERT_NE( nullptr, pImage );
+    ASSERT_NE( nullptr, pImage->pImage );
+    ASSERT_NE( nullptr, pImage->pMemory );
+    ASSERT_GT( pImage->fd, -1 );
+
+    uint8_t *pData = miniVk.MapImage( pImage );
+    ASSERT_EQ( nullptr, pData );
+
+    miniVk.FreeImage( &pImage );
+    ASSERT_EQ( nullptr, pImage );
 }

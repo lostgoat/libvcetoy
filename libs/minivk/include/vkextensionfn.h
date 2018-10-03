@@ -35,6 +35,8 @@ VK_DEVICE_EXT_FN( GetSwapchainImagesKHR )
 VK_DEVICE_EXT_FN( AcquireNextImageKHR )
 VK_DEVICE_EXT_FN( QueuePresentKHR )
 VK_DEVICE_EXT_FN( GetPhysicalDeviceXcbPresentationSupportKHR )
+VK_DEVICE_EXT_FN( GetImageMemoryRequirements2KHR )
+VK_DEVICE_EXT_FN( GetBufferMemoryRequirements2KHR )
 
 #undef VK_INSTANCE_EXT
 #undef VK_INSTANCE_EXT_FN

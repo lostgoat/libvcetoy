@@ -19,6 +19,7 @@
  */
 
 #include <pthread.h>
+#include <unistd.h>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -38,6 +39,8 @@ MiniVk::MiniVk()
     , mVkDevice( VK_NULL_HANDLE )
     , mVkQueue( VK_NULL_HANDLE )
     , mQueueFamilyIdx( UINT32_MAX )
+    , mMemoryVramIdx( UINT32_MAX )
+    , mMemoryMappableIdx( UINT32_MAX )
     , mVkCmdPool( VK_NULL_HANDLE )
     , mCmdBufferIdx( 0 )
     , mIsCmdBufferOpen( false )
@@ -177,6 +180,25 @@ int MiniVk::InitVulkanDevice()
     vkGetPhysicalDeviceFeatures(mVkPhysicalDevice, &mVkPhysicalDeviceFeatures);
     vkGetPhysicalDeviceMemoryProperties(mVkPhysicalDevice, &mVkPhysicalDeviceMemoryProperties);
 
+    for ( unsigned i = 0; i < mVkPhysicalDeviceMemoryProperties.memoryTypeCount; ++i )
+    {
+        VkMemoryType *pType = &mVkPhysicalDeviceMemoryProperties.memoryTypes[i];
+
+        if ( mMemoryVramIdx == UINT32_MAX
+             && pType->propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT )
+        {
+            mMemoryVramIdx = i;
+
+        }
+
+        if ( mMemoryMappableIdx == UINT32_MAX
+             && pType->propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+             && pType->propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT )
+        {
+            mMemoryMappableIdx = i;
+        }
+    }
+
     uint32_t queueFamilyCount;
     vkGetPhysicalDeviceQueueFamilyProperties(mVkPhysicalDevice, &queueFamilyCount, nullptr);
     mVkQueueFamilyProperties.resize(queueFamilyCount);
@@ -239,9 +261,9 @@ int MiniVk::InitVulkanDevice()
         FailOn( err != VK_SUCCESS, "Failed to create fence\n" );
     }
 
-#define VK_EXT_FN(name) m_pfn##name = ( PFN_vk##name ) vkGetDeviceProcAddr( mVkDevice, "vk" #name);
+#define VK_DEVICE_EXT_FN(name) mPfn##name = ( PFN_vk##name ) vkGetDeviceProcAddr( mVkDevice, "vk" #name);
 #include "vkextensionfn.h"
-#undef VK_EXT_FN
+#undef VK_DEVICE_EXT_FN
 
     return 0;
 }
@@ -683,4 +705,258 @@ void MiniVk::FreeFencedResources( uint32_t unCmdBufferIdx )
 
 		resourceIter++;
 	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+bool MiniVk::CreateImage( uint32_t unWidth, uint32_t unHeight, VkFormat eFormat, bool bMappable, MiniVkImage **ppImage )
+{
+    int fd = -1;
+    VkResult err;
+    VkImage pImage = VK_NULL_HANDLE;
+    VkDeviceMemory pMemory = VK_NULL_HANDLE;
+    VkImageCreateInfo imageInfo = {};
+    VkImageMemoryRequirementsInfo2KHR imageMemInfo = {};
+    VkMemoryRequirements2KHR memReqs = {};
+    VkMemoryAllocateInfo allocInfo = {};
+    VkMemoryDedicatedAllocateInfoKHR dedicatedMemInfo = {};
+    VkExportMemoryAllocateInfoKHR exportMemoryInfo = {};
+    VkMemoryGetFdInfoKHR memGetFdInfo = {};
+    MiniVkImage *pNewImage = nullptr;
+
+    FailOnTo( !ppImage, error, "Invalid parameter\n" );
+
+    pNewImage = new MiniVkImage;
+    FailOnTo( !pNewImage, error, "Out of memory\n" );
+
+    pNewImage->bMappable = bMappable;
+    pNewImage->pCpuAddr = nullptr;
+
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = unWidth;
+    imageInfo.extent.height = unHeight;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = eFormat;
+    imageInfo.tiling = VK_IMAGE_TILING_LINEAR; // Images are linear for interop purposes
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+
+    err = vkCreateImage( mVkDevice, &imageInfo, nullptr, &pImage );
+    FailOnTo( err != VK_SUCCESS, error, "Failed to allocate image\n" );
+
+    imageMemInfo.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2_KHR;
+    imageMemInfo.image = pImage;
+    mPfnGetImageMemoryRequirements2KHR( mVkDevice, &imageMemInfo, &memReqs);
+
+    dedicatedMemInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+    dedicatedMemInfo.pNext = nullptr;
+    dedicatedMemInfo.buffer = VK_NULL_HANDLE;
+    dedicatedMemInfo.image = pImage;
+
+    exportMemoryInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR;
+    exportMemoryInfo.pNext = &dedicatedMemInfo;
+    exportMemoryInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = &exportMemoryInfo;
+    allocInfo.allocationSize = memReqs.memoryRequirements.size;
+    allocInfo.memoryTypeIndex = bMappable ? mMemoryMappableIdx : mMemoryVramIdx;
+
+    err = vkAllocateMemory( mVkDevice, &allocInfo, nullptr, &pMemory );
+    FailOnTo( err != VK_SUCCESS, error, "Failed to allocate image memory\n" );
+
+    err = vkBindImageMemory( mVkDevice, pImage, pMemory, 0 );
+    FailOnTo( err != VK_SUCCESS, error, "Failed to bind memory to image\n" );
+
+    memGetFdInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+    memGetFdInfo.memory = pMemory;
+    memGetFdInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+
+    err = mPfnGetMemoryFdKHR( mVkDevice, &memGetFdInfo, &fd );
+    FailOnTo( err != VK_SUCCESS, error, "Failed to get memory fd\n" );
+
+    pNewImage->pImage = pImage;
+    pNewImage->pMemory = pMemory;
+    pNewImage->fd = fd;
+
+    *ppImage = pNewImage;
+
+    return true;
+
+error:
+    vkDestroyImage( mVkDevice, pImage, nullptr );
+    vkFreeMemory( mVkDevice, pMemory, nullptr );
+    delete pNewImage;
+
+    return false;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+bool MiniVk::CreateBuffer( uint32_t unSize, bool bMappable, MiniVkBuffer **ppBuffer )
+{
+    int fd = -1;
+    VkResult err;
+    VkBuffer pBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory pMemory = VK_NULL_HANDLE;
+    VkBufferCreateInfo bufferInfo = {};
+    VkBufferMemoryRequirementsInfo2KHR bufferMemInfo = {};
+    VkMemoryRequirements2KHR memReqs = {};
+    VkMemoryAllocateInfo allocInfo = {};
+    VkMemoryDedicatedAllocateInfoKHR dedicatedMemInfo = {};
+    VkExportMemoryAllocateInfoKHR exportMemoryInfo = {};
+    VkMemoryGetFdInfoKHR memGetFdInfo = {};
+    MiniVkBuffer *pNewBuffer = nullptr;
+
+    FailOnTo( !ppBuffer, error, "Invalid parameter\n" );
+
+    pNewBuffer = new MiniVkBuffer;
+    FailOnTo( !pNewBuffer, error, "Out of memory\n" );
+
+    pNewBuffer->bMappable = bMappable;
+    pNewBuffer->pCpuAddr = nullptr;
+
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.pNext = nullptr;
+    bufferInfo.size = unSize;
+    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+
+    err = vkCreateBuffer( mVkDevice, &bufferInfo, nullptr, &pBuffer );
+    FailOnTo( err != VK_SUCCESS || pBuffer == VK_NULL_HANDLE, error, "Failed to allocate buffer\n" );
+
+    bufferMemInfo.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR;
+    bufferMemInfo.buffer = pBuffer;
+    mPfnGetBufferMemoryRequirements2KHR( mVkDevice, &bufferMemInfo, &memReqs);
+
+    dedicatedMemInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+    dedicatedMemInfo.pNext = nullptr;
+    dedicatedMemInfo.buffer = pBuffer;
+    dedicatedMemInfo.image = VK_NULL_HANDLE;
+
+    exportMemoryInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR;
+    exportMemoryInfo.pNext = &dedicatedMemInfo;
+    exportMemoryInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = &exportMemoryInfo;
+    allocInfo.allocationSize = memReqs.memoryRequirements.size;
+    allocInfo.memoryTypeIndex = bMappable ? mMemoryMappableIdx : mMemoryVramIdx;
+
+    err = vkAllocateMemory( mVkDevice, &allocInfo, nullptr, &pMemory );
+    FailOnTo( err != VK_SUCCESS || pMemory == VK_NULL_HANDLE, error, "Failed to allocate buffer memory\n" );
+
+    err = vkBindBufferMemory( mVkDevice, pBuffer, pMemory, 0 );
+    FailOnTo( err != VK_SUCCESS, error, "Failed to bind memory to buffer\n" );
+
+    memGetFdInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+    memGetFdInfo.memory = pMemory;
+    memGetFdInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+
+    err = mPfnGetMemoryFdKHR( mVkDevice, &memGetFdInfo, &fd );
+    FailOnTo( err != VK_SUCCESS, error, "Failed to get memory fd\n" );
+
+    pNewBuffer->pBuffer = pBuffer;
+    pNewBuffer->pMemory = pMemory;
+    pNewBuffer->fd = fd;
+
+    *ppBuffer = pNewBuffer;
+
+    return true;
+
+error:
+    vkDestroyBuffer( mVkDevice, pBuffer, nullptr );
+    vkFreeMemory( mVkDevice, pMemory, nullptr );
+    delete pNewBuffer;
+
+    return false;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+void MiniVk::FreeImage( MiniVkImage **ppImage )
+{
+    MiniVkImage *pImage = nullptr;
+
+    FailOnTo( !ppImage || !*ppImage, error, "Invalid parameter\n" );
+
+    pImage = *ppImage;
+    *ppImage = nullptr;
+
+    close( pImage->fd );
+    vkDestroyImage( mVkDevice, pImage->pImage, nullptr );
+    vkFreeMemory( mVkDevice, pImage->pMemory, nullptr );
+
+error:
+    return;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+void MiniVk::FreeBuffer( MiniVkBuffer **ppBuffer )
+{
+    MiniVkBuffer *pBuffer = nullptr;
+
+    FailOnTo( !ppBuffer || !*ppBuffer, error, "Invalid parameter\n" );
+
+    pBuffer = *ppBuffer;
+    *ppBuffer = nullptr;
+
+    close( pBuffer->fd );
+    vkDestroyBuffer( mVkDevice, pBuffer->pBuffer, nullptr );
+    vkFreeMemory( mVkDevice, pBuffer->pMemory, nullptr );
+
+error:
+    return;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+uint8_t *MiniVk::MapImage( MiniVkImage *pImage )
+{
+    VkResult err;
+    void *pData = nullptr;
+
+    FailOnTo( !pImage, error, "Bad parameter\n" );
+    FailOnTo( !pImage->bMappable, error, "Attempted to map non-mappable image\n" );
+
+    if ( !pImage->pCpuAddr )
+    {
+        err = vkMapMemory( mVkDevice, pImage->pMemory, 0, VK_WHOLE_SIZE, 0, &pData );
+        FailOnTo( err != VK_SUCCESS || !pData, error, "Failed to map image\n" );
+        pImage->pCpuAddr = pData;
+    }
+
+    return (uint8_t*) pData;
+
+error:
+    return nullptr;
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+uint8_t *MiniVk::MapBuffer( MiniVkBuffer *pBuffer )
+{
+    VkResult err;
+    void *pData = nullptr;
+
+    FailOnTo( !pBuffer, error, "Bad parameter\n" );
+    FailOnTo( !pBuffer->bMappable, error, "Attempted to map non-mappable buffer\n" );
+
+    if ( !pBuffer->pCpuAddr )
+    {
+        err = vkMapMemory( mVkDevice, pBuffer->pMemory, 0, VK_WHOLE_SIZE, 0, &pData );
+        FailOnTo( err != VK_SUCCESS || !pData, error, "Failed to map buffer\n" );
+        pBuffer->pCpuAddr = pData;
+    }
+
+    return (uint8_t*) pBuffer->pCpuAddr;
+
+error:
+    return nullptr;
 }
