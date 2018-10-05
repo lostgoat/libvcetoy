@@ -135,6 +135,23 @@ void VcetContextDestroy( VcetCtxHandle *pCtx )
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
+bool VcetBoAlignDimensions( VcetCtxHandle _ctx, uint32_t width, uint32_t height, uint32_t *pAlignedWidth, uint32_t *pAlignedHeight )
+{
+    VCET_CTX_B( ctx, _ctx );
+
+    FailOnTo( !pAlignedWidth || !pAlignedHeight, error, "Failed to align dimensions: bad parameter\n" );
+
+    *pAlignedWidth = ALIGN( width, VcetBo::GetWidthAlignment( ctx ) );
+    *pAlignedHeight = ALIGN( height, VcetBo::GetHeightAlignment( ctx ) );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 bool VcetBoCreate( VcetCtxHandle _ctx, uint64_t sizeBytes, bool mappable, VcetBoHandle *pBo )
 {
     bool ret;
@@ -186,6 +203,32 @@ bool VcetBoCreateImage( VcetCtxHandle _ctx, uint32_t width, uint32_t height, boo
 error:
     return false;
 }
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBoImport( VcetCtxHandle _ctx, int fd, bool mappable, VcetBoHandle *pBo )
+{
+    bool ret;
+    std::shared_ptr<VcetBo> bo = nullptr;
+    VCET_CTX_B( ctx, _ctx );
+
+    FailOnTo( !pBo , error, "Failed to import bo: bad parameter\n" );
+
+    bo = std::make_shared<VcetBo>( ctx );
+    FailOnTo( !bo, error, "Failed to import bo: out of memory\n" );
+
+    ret = bo->Import( fd, mappable );
+    FailOnTo( !ret, error, "Failed to import bo: failed to import\n" );
+
+    *pBo = new VcetBoProxy(std::move(bo));
+    FailOnTo( !*pBo , error, "Failed to import bo: failed to allocate handle\n" );
+
+    return true;
+
+error:
+    return false;
+}
+
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 void VcetBoDestroy( VcetBoHandle *pBo )

@@ -56,7 +56,7 @@ class VcetTest : public ::testing::Test
             mBoSize = MAX_WIDTH * MAX_HEIGHT * 1.5;
             ASSERT_TRUE( VcetBoCreate( mCtx, mBoSize, true, &mMappableBo ) );
             ASSERT_TRUE( VcetBoCreate( mCtx, mBoSize, false, &mUnmappableBo ) );
-            ASSERT_TRUE( VcetBoCreateImage( mCtx, 1, 1, true, &mTinyImage, &mWidthAlignment, &mHeightAlignment ) );
+            ASSERT_TRUE( VcetBoAlignDimensions( mCtx, 1, 1, &mWidthAlignment, &mHeightAlignment ) );
             ASSERT_NE( mMappableBo, nullptr );
             ASSERT_NE( mUnmappableBo, nullptr );
         }
@@ -338,14 +338,14 @@ class VulkanTest : public ::testing::Test {
         protected:
                 virtual void SetUp()
                 {
-                        ASSERT_EQ( miniVk.Init(), 0 );
+                        ASSERT_EQ( mMiniVk.Init(), 0 );
                 }
 
                 virtual void TearDown()
                 {
                 }
 
-                MiniVk miniVk;
+                MiniVk mMiniVk;
 };
 
 TEST_F(VulkanTest, Sanity)
@@ -355,43 +355,43 @@ TEST_F(VulkanTest, Sanity)
 TEST_F(VulkanTest, CreateImageVram)
 {
     MiniVk::MiniVkImage *pImage;
-    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, false, &pImage ) );
+    ASSERT_TRUE( mMiniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, false, &pImage ) );
     ASSERT_NE( nullptr, pImage );
     ASSERT_NE( nullptr, pImage->pImage );
     ASSERT_NE( nullptr, pImage->pMemory );
     ASSERT_GT( pImage->fd, -1 );
 
-    miniVk.FreeImage( &pImage );
+    mMiniVk.FreeImage( &pImage );
     ASSERT_EQ( nullptr, pImage );
 }
 
 TEST_F(VulkanTest, CreateImageMappable)
 {
     MiniVk::MiniVkImage *pImage;
-    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, true, &pImage ) );
+    ASSERT_TRUE( mMiniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, true, &pImage ) );
     ASSERT_NE( nullptr, pImage );
     ASSERT_NE( nullptr, pImage->pImage );
     ASSERT_NE( nullptr, pImage->pMemory );
     ASSERT_GT( pImage->fd, -1 );
 
-    uint8_t *pData = miniVk.MapImage( pImage );
+    uint8_t *pData = mMiniVk.MapImage( pImage );
     ASSERT_NE( nullptr, pData );
     *pData = 1;
 
-    miniVk.FreeImage( &pImage );
+    mMiniVk.FreeImage( &pImage );
     ASSERT_EQ( nullptr, pImage );
 }
 
 TEST_F(VulkanTest, CreateBufferVram)
 {
     MiniVk::MiniVkBuffer *pBuffer;
-    ASSERT_TRUE( miniVk.CreateBuffer( 100, false, &pBuffer ) );
+    ASSERT_TRUE( mMiniVk.CreateBuffer( 100, false, &pBuffer ) );
     ASSERT_NE( nullptr, pBuffer );
     ASSERT_NE( nullptr, pBuffer->pBuffer );
     ASSERT_NE( nullptr, pBuffer->pMemory );
     ASSERT_GT( pBuffer->fd, -1 );
 
-    miniVk.FreeBuffer( &pBuffer );
+    mMiniVk.FreeBuffer( &pBuffer );
     ASSERT_EQ( nullptr, pBuffer );
 }
 
@@ -400,49 +400,186 @@ TEST_F(VulkanTest, CreateBufferMappable)
     size_t bufSize = 100;
 
     MiniVk::MiniVkBuffer *pBuffer;
-    ASSERT_TRUE( miniVk.CreateBuffer( bufSize, true, &pBuffer ) );
+    ASSERT_TRUE( mMiniVk.CreateBuffer( bufSize, true, &pBuffer ) );
     ASSERT_NE( nullptr, pBuffer );
     ASSERT_NE( nullptr, pBuffer->pBuffer );
     ASSERT_NE( nullptr, pBuffer->pMemory );
     ASSERT_GT( pBuffer->fd, -1 );
 
-    uint8_t *pData = miniVk.MapBuffer( pBuffer );
+    uint8_t *pData = mMiniVk.MapBuffer( pBuffer );
     ASSERT_NE( nullptr, pData );
     memset( pData, 1, bufSize );
     *pData = 1;
 
-    miniVk.FreeBuffer( &pBuffer );
+    mMiniVk.FreeBuffer( &pBuffer );
     ASSERT_EQ( nullptr, pBuffer );
 }
 
 TEST_F(VulkanTest, MapUnmappableBuffer)
 {
     MiniVk::MiniVkBuffer *pBuffer;
-    ASSERT_TRUE( miniVk.CreateBuffer( 100, false, &pBuffer ) );
+    ASSERT_TRUE( mMiniVk.CreateBuffer( 100, false, &pBuffer ) );
     ASSERT_NE( nullptr, pBuffer );
     ASSERT_NE( nullptr, pBuffer->pBuffer );
     ASSERT_NE( nullptr, pBuffer->pMemory );
     ASSERT_GT( pBuffer->fd, -1 );
 
-    uint8_t *pData = miniVk.MapBuffer( pBuffer );
+    uint8_t *pData = mMiniVk.MapBuffer( pBuffer );
     ASSERT_EQ( nullptr, pData );
 
-    miniVk.FreeBuffer( &pBuffer );
+    mMiniVk.FreeBuffer( &pBuffer );
     ASSERT_EQ( nullptr, pBuffer );
 }
 
 TEST_F(VulkanTest, MapUnmappableImage)
 {
     MiniVk::MiniVkImage *pImage;
-    ASSERT_TRUE( miniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, false, &pImage ) );
+    ASSERT_TRUE( mMiniVk.CreateImage( 100, 100, VK_FORMAT_B8G8R8A8_SRGB, false, &pImage ) );
     ASSERT_NE( nullptr, pImage );
     ASSERT_NE( nullptr, pImage->pImage );
     ASSERT_NE( nullptr, pImage->pMemory );
     ASSERT_GT( pImage->fd, -1 );
 
-    uint8_t *pData = miniVk.MapImage( pImage );
+    uint8_t *pData = mMiniVk.MapImage( pImage );
     ASSERT_EQ( nullptr, pData );
 
-    miniVk.FreeImage( &pImage );
+    mMiniVk.FreeImage( &pImage );
     ASSERT_EQ( nullptr, pImage );
+}
+
+class InteropFrames : public VcetTest
+{
+    protected:
+        static const int kFrameMax = 5;
+
+        class Frame {
+        public:
+            uint32_t mWidth;
+            uint32_t mHeight;
+            uint32_t mAlignedWidth;
+            uint32_t mAlignedHeight;
+            uint32_t mWidthAlignment;
+            uint32_t mHeightAlignment;
+            uint64_t mSize;
+            VcetBoHandle mBo;
+            uint8_t *mBoData;
+            MiniVk::MiniVkBuffer *mBuffer;
+            uint8_t *mBufferData;
+
+            void DumpToFile()
+            {
+                DumpDataToFile( mBoData, mSize, "interop", mAlignedWidth, mAlignedHeight );
+            }
+
+            void FromBitmap( VcetCtxHandle ctx, MiniVk *pVk, const char *path )
+            {
+                static const float kNv21Bpp = 1.5;
+
+                uint8_t *pFrameData = util::GetNV21Data( path, mWidthAlignment, mHeightAlignment, &mWidth, &mHeight );
+                ASSERT_NE( (uint32_t)0, mWidth );
+                ASSERT_NE( (uint32_t)0, mHeight );
+                ASSERT_NE( nullptr, pFrameData );
+
+                ASSERT_TRUE( VcetBoAlignDimensions( ctx, mWidth, mHeight, &mAlignedWidth, &mAlignedHeight ) );
+                ASSERT_NE( (uint32_t)0, mAlignedWidth );
+                ASSERT_NE( (uint32_t)0, mAlignedHeight );
+
+                // Allocate in Vulkan
+                uint32_t bufSize = mAlignedWidth * mAlignedHeight * kNv21Bpp;
+                ASSERT_TRUE( pVk->CreateBuffer( bufSize, true, &mBuffer ) );
+                ASSERT_NE( nullptr, mBuffer );
+
+                mBufferData = pVk->MapBuffer( mBuffer );
+                ASSERT_NE( nullptr, mBufferData );
+
+                // Populate with data
+                mSize = bufSize;
+                memcpy( mBufferData, pFrameData, mSize );
+
+                // Create a VcetBo alias
+                ASSERT_TRUE( VcetBoImport( ctx, mBuffer->fd, true, &mBo ) );
+                ASSERT_NE( nullptr, mBo );
+
+                ASSERT_TRUE( VcetBoMap( mBo, &mBoData ) );
+                ASSERT_NE( nullptr, mBoData );
+
+                // Check pixel by pixel for precise error location
+                for ( unsigned i = 0; i < mSize; i++ )
+                {
+                    ASSERT_EQ( mBoData[i], mBufferData[i] );
+                }
+
+                DumpToFile();
+
+                free( pFrameData );
+            }
+
+            Frame( uint32_t alignWidth, uint32_t alignHeight )
+                : mWidth( 0 )
+                , mHeight( 0 )
+                , mWidthAlignment( alignWidth )
+                , mHeightAlignment( alignHeight )
+                , mSize( 0 )
+                , mBo( nullptr )
+                , mBoData( nullptr )
+            {}
+
+            ~Frame()
+            {
+                VcetBoDestroy( &mBo );
+            }
+
+        };
+
+        virtual void SetUp()
+        {
+            GetDimensionData( "test/frames/001.bmp" );
+            VcetTest::SetUp();
+
+            ASSERT_EQ( mMiniVk.Init(), 0 );
+
+            for ( int i = 0; i < kFrameMax; ++i ) {
+                mFrame[i] = new Frame( mWidthAlignment, mHeightAlignment );
+            }
+
+            mFrame[0]->FromBitmap( mCtx, &mMiniVk, "test/frames/001.bmp" );
+            mFrame[1]->FromBitmap( mCtx, &mMiniVk, "test/frames/002.bmp" );
+            mFrame[2]->FromBitmap( mCtx, &mMiniVk, "test/frames/003.bmp" );
+            mFrame[3]->FromBitmap( mCtx, &mMiniVk, "test/frames/001.bmp" );
+            mFrame[4]->FromBitmap( mCtx, &mMiniVk, "test/frames/pattern.bmp" );
+        }
+
+        virtual void TearDown()
+        {
+            for ( int i = 0; i < kFrameMax; ++i ) {
+                delete mFrame[i];
+            }
+
+            VcetTest::TearDown();
+        }
+
+        virtual uint32_t GetWidth()
+        {
+            return mWidth;
+        }
+
+        virtual uint32_t GetHeight()
+        {
+            return mHeight;
+        }
+
+        void GetDimensionData( const char *path )
+        {
+            uint32_t stride;
+            uint8_t *data = util::GetBmpData( path, &mWidth, &mHeight, &stride );
+            delete data;
+        }
+
+        Frame* mFrame[ kFrameMax ];
+        uint32_t mWidth, mHeight;
+        MiniVk mMiniVk;
+};
+
+TEST_F(InteropFrames, Sanity)
+{
 }

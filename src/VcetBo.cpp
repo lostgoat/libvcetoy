@@ -133,6 +133,47 @@ error:
     return false;
 }
 
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetBo::Import( int fd, bool bMappable )
+{
+    int err;
+	struct amdgpu_bo_import_result importResult = {};
+	struct amdgpu_bo_info info = {};
+    uint64_t gpuAddr = 0;
+	amdgpu_va_handle vaHandle;
+
+    err = amdgpu_bo_import( mContext->GetDevice(),
+                            amdgpu_bo_handle_type_dma_buf_fd,
+                            fd,
+                            &importResult );
+    FailOnTo( err, error, "Failed to import fd %d\n", fd );
+
+    err = amdgpu_va_range_alloc( mContext->GetDevice(),
+                                 amdgpu_gpu_va_range_general,
+                                 importResult.alloc_size, kVaAlignment, 0,
+                                 &gpuAddr, &vaHandle, kVaAllocFlags);
+    FailOnTo( err, error, "Failed to allocate gpuAddr for import bo\n" );
+
+    err = amdgpu_bo_va_op( importResult.buf_handle, 0,
+                           importResult.alloc_size,
+                           gpuAddr, 0, AMDGPU_VA_OP_MAP);
+    FailOnTo( err, error, "Failed to map gpuAddr for bo\n" );
+
+    mGpuAddr = gpuAddr;
+    mSizeBytes = importResult.alloc_size;
+    mBoHandle = importResult.buf_handle;
+    mVaHandle = vaHandle;
+    mMappable = bMappable; // Lazy approach
+
+    return true;
+
+error:
+    // TODO de-allocate intermediate stuff
+    return false;
+}
+
 bool VcetBo::Map()
 {
     int err;

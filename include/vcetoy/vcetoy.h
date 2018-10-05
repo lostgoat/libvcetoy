@@ -58,6 +58,19 @@ bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t width, uint32_t height );
 void VcetContextDestroy( VcetCtxHandle *pCtx );
 
 /**
+ * Calculates the required HW alignment for a NV21 image
+ *
+ * @param ctx               The VcetCtx
+ * @param width             Image width
+ * @param height            Image height
+ * @param pAlignedWidth     Aligned width according to HW requirements
+ * @param pAlignedHeight    Aligned height according to HW requirements
+ *
+ * @return true on success, false otherwise
+ */
+bool VcetBoAlignDimensions( VcetCtxHandle _ctx, uint32_t width, uint32_t height, uint32_t *pAlignedWidth, uint32_t *pAlignedHeight );
+
+/**
  * Creates a libvcetoy buffer object
  *
  * @param ctx       The VcetCtx from which to allocate the bo
@@ -83,6 +96,18 @@ bool VcetBoCreate( VcetCtxHandle ctx, uint64_t sizeBytes, bool mappable, VcetBoH
  * @return true on success, false otherwise
  */
 bool VcetBoCreateImage( VcetCtxHandle ctx, uint32_t width, uint32_t height, bool mappable, VcetBoHandle *pBo, uint32_t *pAlignedWidth, uint32_t *pAlignedHeight );
+
+/**
+ * Creates a libvcetoy buffer object that aliases the memory referenced by fd
+ *
+ * @param ctx               The VcetCtx from which to allocate the bo
+ * @param fd                A dma buf fd representing the memory
+ * @param mappable          Specify whether the memory referenced by fd is mappable
+ * @param pBo               On success, populated with the bo handle
+ *
+ * @return true on success, false otherwise
+ */
+bool VcetBoImport( VcetCtxHandle ctx, int fd, bool mappable, VcetBoHandle *pBo );
 
 /**
  * Destroys a libvcetoy buffer object

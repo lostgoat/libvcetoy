@@ -58,6 +58,12 @@ class VcetBo
          */
         bool Allocate( uint32_t width, uint32_t height, bool mappable );
 
+        /**
+         * Import a BO from a dma buf fd
+         *
+         * Caller must specify whether the buffer was allocated with mappable properties
+         */
+        bool Import( int fd, bool bMappable );
 
         /**
          * Map the BO for cpu usage
