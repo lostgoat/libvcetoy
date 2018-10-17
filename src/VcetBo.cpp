@@ -139,10 +139,9 @@ error:
 bool VcetBo::Import( int fd, bool bMappable )
 {
     int err;
-	struct amdgpu_bo_import_result importResult = {};
-	struct amdgpu_bo_info info = {};
+    struct amdgpu_bo_import_result importResult = {};
     uint64_t gpuAddr = 0;
-	amdgpu_va_handle vaHandle;
+    amdgpu_va_handle vaHandle;
 
     err = amdgpu_bo_import( mContext->GetDevice(),
                             amdgpu_bo_handle_type_dma_buf_fd,
