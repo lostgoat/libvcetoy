@@ -251,11 +251,17 @@ TEST_F(VcetTestFrames, CalculateMv )
     ASSERT_EQ( true, VcetBoMap( mMappableBo, &mvData ) );
     memset( mvData, 0, mBoSize );
 
-    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[3]->mBo,
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
                                   mMappableBo,
                                   mFrame[0]->mWidth, mFrame[0]->mHeight ));
-
     DumpDataToFile( mvData, mBoSize, "mv01", MAX_WIDTH, MAX_HEIGHT );
+
+    uint64_t sum = 0;
+    for ( uint32_t i = 0; i < mBoSize; ++i ) {
+        sum += mvData[i];
+    }
+
+    ASSERT_NE( 0u, sum );
 }
 
 TEST_F(VcetTestFrames, CalculateMvNoMovement )
@@ -447,7 +453,7 @@ TEST_F(VulkanTest, MapUnmappableImage)
     ASSERT_EQ( nullptr, pImage );
 }
 
-class InteropFrames : public VcetTest
+class InteropFrames : public ::testing::Test
 {
     protected:
         static const int kFrameMax = 5;
@@ -533,10 +539,25 @@ class InteropFrames : public VcetTest
 
         virtual void SetUp()
         {
+            mCtx = nullptr;
+            mMvBuffer = nullptr;
+            mMvData = nullptr;
+            mWidthAlignment = 0;
+            mHeightAlignment = 0;
+            mWidth = 0;
+            mHeight = 0;
+            mMvDataSize = MAX_WIDTH * MAX_HEIGHT * 1.5; // Fix this
+
             GetDimensionData( "test/frames/001.bmp" );
-            VcetTest::SetUp();
+
+            ASSERT_TRUE( VcetContextCreate( &mCtx, GetWidth(), GetHeight() ) );
+            ASSERT_NE( mCtx, nullptr );
 
             ASSERT_EQ( mMiniVk.Init(), 0 );
+
+            ASSERT_TRUE( VcetBoAlignDimensions( mCtx, 1, 1, &mWidthAlignment, &mHeightAlignment ) );
+            ASSERT_NE( 0u, mWidthAlignment );
+            ASSERT_NE( 0u, mHeightAlignment );
 
             for ( int i = 0; i < kFrameMax; ++i ) {
                 mFrame[i] = new Frame( mWidthAlignment, mHeightAlignment );
@@ -547,6 +568,17 @@ class InteropFrames : public VcetTest
             mFrame[2]->FromBitmap( mCtx, &mMiniVk, "test/frames/003.bmp" );
             mFrame[3]->FromBitmap( mCtx, &mMiniVk, "test/frames/001.bmp" );
             mFrame[4]->FromBitmap( mCtx, &mMiniVk, "test/frames/pattern.bmp" );
+
+            ASSERT_TRUE( mMiniVk.CreateBuffer( mMvDataSize, true, &mMvBuffer ) );
+            ASSERT_NE( nullptr, mMvBuffer );
+
+            mMvData = mMiniVk.MapBuffer( mMvBuffer );
+            ASSERT_NE( nullptr, mMvData );
+            memset( mMvData, 0, mMvDataSize );
+
+            ASSERT_TRUE( VcetBoImport( mCtx, mMvBuffer->fd, true, &mMvBo ) );
+            ASSERT_NE( nullptr, mMvBo );
+
         }
 
         virtual void TearDown()
@@ -554,8 +586,6 @@ class InteropFrames : public VcetTest
             for ( int i = 0; i < kFrameMax; ++i ) {
                 delete mFrame[i];
             }
-
-            VcetTest::TearDown();
         }
 
         virtual uint32_t GetWidth()
@@ -575,11 +605,59 @@ class InteropFrames : public VcetTest
             delete data;
         }
 
-        Frame* mFrame[ kFrameMax ];
-        uint32_t mWidth, mHeight;
+        bool IsMovementDetected()
+        {
+            uint64_t sum = 0;
+            for ( uint32_t i = 0; i < mMvDataSize; ++i ) {
+                sum += mMvData[i];
+            }
+
+            return sum != 0;
+        }
+
         MiniVk mMiniVk;
+        VcetCtxHandle mCtx;
+
+        uint32_t mWidth, mHeight;
+        uint32_t mWidthAlignment;
+        uint32_t mHeightAlignment;
+
+        uint32_t mMvDataSize;
+        MiniVk::MiniVkBuffer *mMvBuffer;
+        uint8_t *mMvData;
+        VcetBoHandle mMvBo;
+
+        Frame* mFrame[ kFrameMax ];
 };
 
-TEST_F(InteropFrames, Sanity)
+TEST_F( InteropFrames, Sanity)
 {
+}
+
+TEST_F( InteropFrames, CalculateMv )
+{
+
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo, mMvBo,
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+    ASSERT_EQ( true, IsMovementDetected() );
+
+    DumpDataToFile( mMvData, mMvDataSize, "interop-mv01", MAX_WIDTH, MAX_HEIGHT );
+
+}
+
+TEST_F( InteropFrames, CalculateMvNoMovement )
+{
+    // Two equal frames should produce a zero motion vector
+    ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[3]->mBo, mMvBo,
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+    ASSERT_EQ( false, IsMovementDetected() );
+}
+
+TEST_F( InteropFrames, MultipleSubmissions )
+{
+    for ( int i = 0; i < 20; i++ ) {
+        ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo, mMvBo,
+                                      mFrame[0]->mWidth, mFrame[0]->mHeight ));
+        ASSERT_EQ( true, IsMovementDetected() );
+    }
 }
