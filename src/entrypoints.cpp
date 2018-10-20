@@ -114,8 +114,6 @@ bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeig
     *pCtx = new VcetCtxProxy(std::move(ctx));
     FailOnTo( !*pCtx, error, "Failed to create context: failed to allocate handle\n" );
 
-    FailOnTo( ctx.get() != nullptr, error, "ANDRES test move\n");
-
     return true;
 
 error:
