@@ -28,8 +28,8 @@
 
 #include <util/util.h>
 #include <xf86drm.h>
-#include <drm/amdgpu_drm.h>
 
+#include "Drm.h"
 #include "VcetIb.h"
 #include "VcetBo.h"
 

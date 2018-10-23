@@ -38,14 +38,11 @@ clivcetoy_files = files(
     'cli.cpp',
 )
 
-drm_headers = drm_dep.partial_dependency( compile_args: true, includes: true )
-amdgpu_headers = amdgpu_dep.partial_dependency( compile_args : true, includes: true )
-
 vcetoy_lib = shared_library(
     'vcetoy',
     libvcetoy_files,
-    dependencies : [ drm_headers, amdgpu_headers, dl_dep ],
-    include_directories : [ libvcetoy_include ],
+    dependencies : [ dl_dep ],
+    include_directories : [ libvcetoy_include, libdrm_include, amdgpu_include ],
 )
 
 vcetoy_dep = declare_dependency(

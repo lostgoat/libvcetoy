@@ -27,8 +27,8 @@
 
 
 #include <util/util.h>
-#include <drm/amdgpu_drm.h>
 
+#include "Drm.h"
 #include "VcetContext.h"
 #include "VcetBo.h"
 

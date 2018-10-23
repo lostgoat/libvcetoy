@@ -26,7 +26,7 @@
 #pragma once
 
 #include <libdrm/amdgpu.h>
-#include <drm/amdgpu_drm.h>
+#include <libdrm/amdgpu_drm.h>
 
 class VcetIb;
 

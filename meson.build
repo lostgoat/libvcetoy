@@ -35,14 +35,14 @@ project(
 cpp = meson.get_compiler('cpp')
 
 dl_dep      = cpp.find_library('dl', required : true)
-drm_dep     = dependency('libdrm', version : '>=2.4.91')
-amdgpu_dep  = dependency('libdrm_amdgpu', version : '>=2.4.91')
 sdl_dep     = dependency('sdl2', version : '>=2.0.0')
 vulkan_dep  = dependency('vulkan')
 thread_dep  = dependency('threads')
 gtest_dep   = dependency('gtest', main : true)
 
 libvcetoy_include = include_directories('include')
+libdrm_include = include_directories('libs/libdrm/include')
+amdgpu_include = include_directories('libs/libdrm/include/libdrm')
 
 subdir('libs')
 subdir('src')
