@@ -24,23 +24,31 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+#include <dlfcn.h>
 #include <unistd.h>
-#include <util/util.h>
+#include <cstring>
 #include <xf86drm.h>
 
+#include <util/util.h>
 #include "VcetIb.h"
 
 #include "Drm.h"
 
-#define DRM_CALL( fnName, ... ) fnName( __VA_ARGS__ )
+#define DRM_CALL( fnName, ... ) mEntrypoints.mPfn_##fnName( __VA_ARGS__ )
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 Drm::Drm()
-    : mDrmFd( -1 )
+    : mDrmLib( nullptr )
+    , mDrmAmdgpuLib( nullptr )
+    , mDrmFd( -1 )
     , mDevice( nullptr )
     , mDeviceContext( nullptr )
+    , mDevMajor( 0 )
+    , mDevMinor( 0 )
 {
+    ::memset( &mEntrypoints, 0, sizeof(mEntrypoints) );
+    ::memset( &mGpuInfo, 0, sizeof(mGpuInfo) );
 }
 
 //---------------------------------------------------------------------------//
@@ -94,8 +102,43 @@ error:
 //---------------------------------------------------------------------------//
 int Drm::LoadEntrypoints()
 {
-    //TODO: Nothing to do, still using compile time link
+    mDrmLib = dlopen( "libdrm.so", RTLD_NOW );
+    FailOnTo( !mDrmLib, error, "Failed to load libdrm\n" );
+
+    mDrmAmdgpuLib = dlopen( "libdrm_amdgpu.so", RTLD_NOW );
+    FailOnTo( !mDrmAmdgpuLib, error, "Failed to load libdrm_amdgpu\n" );
+
+#define DRM_DLSYM_ENTRYPOINT(handle, name) \
+    mEntrypoints.mPfn_##name = (Pfn_##name) dlsym( handle, #name ); \
+    if ( !mEntrypoints.mPfn_##name ) \
+        goto error;
+
+    DRM_DLSYM_ENTRYPOINT(mDrmLib, drmOpenWithType);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_device_initialize);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_query_gpu_info);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_cs_ctx_create);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_query_firmware_version);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_cs_submit);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_cs_query_fence_status);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_list_create);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_list_destroy);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_alloc);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_free);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_import);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_cpu_map);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_cpu_unmap);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_cs_ctx_free);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_device_deinitialize);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_va_range_alloc);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_va_range_free);
+    DRM_DLSYM_ENTRYPOINT(mDrmAmdgpuLib, amdgpu_bo_va_op);
+
+#undef DRM_DLSYM_ENTRYPOINT
+
     return 0;
+
+error:
+    return -1;
 }
 
 //---------------------------------------------------------------------------//
