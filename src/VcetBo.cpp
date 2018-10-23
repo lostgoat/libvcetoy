@@ -59,17 +59,17 @@ VcetBo::~VcetBo()
         Unmap();
 
     if ( mBoHandle ) {
-        err = amdgpu_bo_va_op( mBoHandle, 0, mSizeBytes, mGpuAddr, 0, AMDGPU_VA_OP_UNMAP );
+        err = mContext->GetDrm()->BoVaOp( mBoHandle, 0, mSizeBytes, mGpuAddr, 0, AMDGPU_VA_OP_UNMAP );
         WarnOn( err, "Failed to unmap gpu va range\n" );
 
-        err = amdgpu_bo_free( mBoHandle );
+        err = mContext->GetDrm()->BoFree( mBoHandle );
         WarnOn( err, "Failed to free amdgpu bo\n" );
 
         mBoHandle = nullptr;
     }
 
     if ( mVaHandle ) {
-        err = amdgpu_va_range_free( mVaHandle );
+        err = mContext->GetDrm()->VaRangeFree( mVaHandle );
         WarnOn( err, "Failed to free va range\n" );
 
         mVaHandle = 0;
@@ -94,16 +94,15 @@ bool VcetBo::Allocate( uint64_t sizeBytes, bool mappable, uint32_t alignment )
     req.phys_alignment = alignment;
     req.preferred_heap = domain;
     req.flags = 0;
-    err = amdgpu_bo_alloc( mContext->GetDevice(), &req, &boHandle );
+    err = mContext->GetDrm()->BoAlloc( &req, &boHandle );
     FailOnTo( err, error, "Failed to allocate amdgpu bo\n" );
 
-    err = amdgpu_va_range_alloc( mContext->GetDevice(),
-                                 amdgpu_gpu_va_range_general,
-                                 alignedSize, kVaAlignment, 0,
-                                 &gpuAddr, &vaHandle, kVaAllocFlags);
+    err = mContext->GetDrm()->VaRangeAlloc( amdgpu_gpu_va_range_general,
+                                            alignedSize, kVaAlignment, 0,
+                                            &gpuAddr, &vaHandle, kVaAllocFlags);
     FailOnTo( err, error, "Failed to allocate gpuAddr for bo\n" );
 
-    err = amdgpu_bo_va_op( boHandle, 0, alignedSize, gpuAddr, 0, AMDGPU_VA_OP_MAP);
+    err = mContext->GetDrm()->BoVaOp( boHandle, 0, alignedSize, gpuAddr, 0, AMDGPU_VA_OP_MAP);
     FailOnTo( err, error, "Failed to map gpuAddr for bo\n" );
 
     mGpuAddr = gpuAddr;
@@ -152,21 +151,17 @@ bool VcetBo::Import( int fd, bool bMappable )
     uint64_t gpuAddr = 0;
     amdgpu_va_handle vaHandle;
 
-    err = amdgpu_bo_import( mContext->GetDevice(),
-                            amdgpu_bo_handle_type_dma_buf_fd,
-                            fd,
-                            &importResult );
+    err = mContext->GetDrm()->BoImport( amdgpu_bo_handle_type_dma_buf_fd, fd, &importResult );
     FailOnTo( err, error, "Failed to import fd %d\n", fd );
 
-    err = amdgpu_va_range_alloc( mContext->GetDevice(),
-                                 amdgpu_gpu_va_range_general,
-                                 importResult.alloc_size, kVaAlignment, 0,
-                                 &gpuAddr, &vaHandle, kVaAllocFlags);
+    err = mContext->GetDrm()->VaRangeAlloc( amdgpu_gpu_va_range_general,
+                                            importResult.alloc_size, kVaAlignment, 0,
+                                            &gpuAddr, &vaHandle, kVaAllocFlags);
     FailOnTo( err, error, "Failed to allocate gpuAddr for import bo\n" );
 
-    err = amdgpu_bo_va_op( importResult.buf_handle, 0,
-                           importResult.alloc_size,
-                           gpuAddr, 0, AMDGPU_VA_OP_MAP);
+    err = mContext->GetDrm()->BoVaOp( importResult.buf_handle, 0,
+                                      importResult.alloc_size,
+                                      gpuAddr, 0, AMDGPU_VA_OP_MAP);
     FailOnTo( err, error, "Failed to map gpuAddr for bo\n" );
 
     mGpuAddr = gpuAddr;
@@ -191,7 +186,7 @@ bool VcetBo::Map()
     FailOnTo( !mMappable, error, "Attempted to map un-mappable BO\n" );
     FailOnTo( mCpuAddr, error, "Attempted to map already-mapped BO\n" );
 
-    err = amdgpu_bo_cpu_map( mBoHandle, (void**) &cpuAddr);
+    err = mContext->GetDrm()->BoCpuMap( mBoHandle, &cpuAddr);
     FailOnTo( err, error, "Failed to cpu map bo\n" );
 
     mCpuAddr = cpuAddr;
@@ -209,7 +204,7 @@ bool VcetBo::Unmap()
     FailOnTo( !mBoHandle, error, "Attempted to unmap un-allocated BO\n" );
     FailOnTo( !mCpuAddr, error, "Attempted to unmap unmapped BO\n" );
 
-    err = amdgpu_bo_cpu_unmap( mBoHandle );
+    err = mContext->GetDrm()->BoCpuUnmap( mBoHandle );
     FailOnTo( err, error, "Failed to unmap bo\n" );
 
     mCpuAddr = nullptr;

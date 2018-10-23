@@ -51,10 +51,7 @@ static uint32_t GenSessionId()
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
 VcetContext::VcetContext()
-    : mDrmFd( -1 )
-    , mDevice( 0 )
-    , mDeviceContext( 0 )
-    , mSesionId( GenSessionId() )
+    : mSesionId( GenSessionId() )
     , mWidth( 0 )
     , mHeight( 0 )
     , mAlignedWidth( 0 )
@@ -88,21 +85,6 @@ VcetContext::~VcetContext()
     for ( int i = 0; i < kNumIbs; ++i ) {
         delete mIbs[i];
     }
-
-    if ( mDeviceContext ) {
-        amdgpu_cs_ctx_free( mDeviceContext );
-        mDeviceContext = 0;
-    }
-
-    if ( mDevice ) {
-        amdgpu_device_deinitialize(mDevice);
-        mDevice = 0;
-    }
-
-    if ( mDrmFd >= 0 ) {
-        close( mDrmFd );
-        mDrmFd = -1;
-    }
 }
 
 //---------------------------------------------------------------------------//
@@ -110,26 +92,16 @@ VcetContext::~VcetContext()
 bool VcetContext::Init( uint32_t width, uint32_t height )
 {
     int err;
-    uint32_t devMajor, devMinor;
 
     FailOnTo( !width || !height, error, "Bad dimensions\n" );
 
-    mDrmFd = drmOpenWithType( "amdgpu", NULL, DRM_NODE_RENDER );
-    FailOnTo( mDrmFd < 0, error, "Failed to open amdgpu fd\n" );
-
-    err = amdgpu_device_initialize( mDrmFd, &devMajor, &devMinor, &mDevice );
-    FailOnTo( err, error, "Failed to initialize amdgpu device\n" );
-
-    err = amdgpu_query_gpu_info( mDevice, &mGpuInfo );
-    FailOnTo( err, error, "Failed to query gpu info\n" );
+    err = mDrm.Init();
+    FailOnTo( err, error, "Failed to init libdrm interface\n" );
 
     mWidth = width;
     mHeight = height;
     mAlignedWidth = ALIGN( mWidth, VcetBo::GetWidthAlignment( this ) );
     mAlignedHeight = ALIGN( mHeight, VcetBo::GetHeightAlignment( this ) );
-
-    err = amdgpu_cs_ctx_create( mDevice, &mDeviceContext );
-    FailOnTo( err, error, "Failed to create device context\n" );
 
     err = AllocateResources();
     FailOnTo( err, error, "Failed to allocate context resources\n" );
@@ -149,35 +121,34 @@ bool VcetContext::IsMvDumpSupported()
 {
     int err;
     uint32_t fwVersion, fwFeature;
-    uint32_t chipId = mGpuInfo.chip_external_rev;
+    uint32_t chipId = mDrm.GetGpuInfo()->chip_external_rev;
+    uint32_t chipRev = mDrm.GetGpuInfo()->chip_rev;
+    uint32_t familyId = mDrm.GetGpuInfo()->family_id;
 
     // Latest supported gpu
-    if ( mGpuInfo.family_id >= AMDGPU_FAMILY_RV )
+    if ( familyId >= AMDGPU_FAMILY_RV )
         return false;
 
     // Minimum required gpu family
-    if ( mGpuInfo.family_id < AMDGPU_FAMILY_CI )
+    if ( familyId < AMDGPU_FAMILY_CI )
         return false;
 
-    err = amdgpu_query_firmware_version( mDevice, AMDGPU_INFO_FW_VCE, 0,
-                                         0, &fwVersion, &fwFeature);
+    err = mDrm.QueryFirmwareVersion( AMDGPU_INFO_FW_VCE, 0, 0, &fwVersion, &fwFeature);
     FailOnTo( err, error, "Failed to query firmware version\n" );
 
     // These chips have a fw requirement for MV support
     // TODO: this needs a cleanup so we can switch-case
-    if (chipId == (mGpuInfo.chip_rev + 0x3C) || /* FIJI */
-        chipId == (mGpuInfo.chip_rev + 0x50) || /* Polaris 10*/
-        chipId == (mGpuInfo.chip_rev + 0x5A) || /* Polaris 11*/
-        chipId == (mGpuInfo.chip_rev + 0x64))   /* Polaris 12*/
+    if (chipId == (chipRev + 0x3C) || /* FIJI */
+        chipId == (chipRev + 0x50) || /* Polaris 10*/
+        chipId == (chipRev + 0x5A) || /* Polaris 11*/
+        chipId == (chipRev + 0x64))   /* Polaris 12*/
     {
-        if ( fwVersion >= FW_53_0_03 )
-            return true;
+        return fwVersion >= FW_53_0_03;
     }
 
     return true;
 
 error:
-    // Assume we don't support anything else
     return false;
 }
 
@@ -306,7 +277,7 @@ uint32_t VcetContext::GetIpType()
 //---------------------------------------------------------------------------//
 uint32_t VcetContext::GetFamilyId()
 {
-    return mGpuInfo.family_id;
+    return mDrm.GetGpuInfo()->family_id;
 }
 
 //---------------------------------------------------------------------------//
@@ -366,9 +337,9 @@ bool VcetContext::Submit( VcetIb *ib )
     ibInfo.ib_mc_address = ib->GetGpuAddress();
     ibInfo.size = ib->GetSizeDw();
 
-    err = amdgpu_bo_list_create( mDevice, ib->GetNumResources(),
-                                 ib->GetResources(), nullptr,
-                                 &boList);
+    err = mDrm.BoListCreate( ib->GetNumResources(),
+                             ib->GetResources(), nullptr,
+                             &boList );
     FailOnTo( err, error, "Failed to create bo list\n" );
 
     ibsRequest.ip_type = GetIpType();
@@ -377,12 +348,12 @@ bool VcetContext::Submit( VcetIb *ib )
     ibsRequest.fence_info.handle = nullptr;
     ibsRequest.resources = boList;
 
-    err = amdgpu_cs_submit( mDeviceContext, 0, &ibsRequest, 1);
+    err = mDrm.CsSubmit( 0, &ibsRequest, 1);
     FailOnTo( err, error, "Failed to submit ib\n" );
 
     ib->SetSeqNo( ibsRequest.seq_no );
 
-    err = amdgpu_bo_list_destroy( ibsRequest.resources );
+    err = mDrm.BoListDestroy( ibsRequest.resources );
     boList = nullptr;
     WarnOn( err,  "Failed to destroy bo list\n" );
 
@@ -395,7 +366,7 @@ bool VcetContext::Submit( VcetIb *ib )
 
 error:
     if ( boList )
-        amdgpu_bo_list_destroy( boList );
+        mDrm.BoListDestroy( boList );
 
     return false;
 }

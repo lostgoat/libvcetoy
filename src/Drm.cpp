@@ -24,271 +24,168 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-
-
+#include <unistd.h>
 #include <util/util.h>
-#include <drm/amdgpu_drm.h>
+#include <xf86drm.h>
 
-#include "VcetContext.h"
-#include "VcetBo.h"
+#include "VcetIb.h"
+
+#include "Drm.h"
+
+#define DRM_CALL( fnName, ... ) fnName( __VA_ARGS__ )
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-VcetBo::VcetBo( VcetContext *pContext )
-    : mContext( pContext )
-    , mMappable( false )
-    , mSizeBytes( 0 )
-    , mWidth( 0 )
-    , mHeight( 0 )
-    , mAlignedWidth( 0 )
-    , mAlignedHeight( 0 )
-    , mBoHandle( 0 )
-    , mVaHandle( 0 )
-    , mGpuAddr( 0 )
-    , mCpuAddr( nullptr )
+Drm::Drm()
+    : mDrmFd( -1 )
+    , mDevice( nullptr )
+    , mDeviceContext( nullptr )
 {
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-VcetBo::~VcetBo()
+Drm::~Drm()
 {
-    int err;
-
-    if ( mCpuAddr )
-        Unmap();
-
-    if ( mBoHandle ) {
-        err = amdgpu_bo_va_op( mBoHandle, 0, mSizeBytes, mGpuAddr, 0, AMDGPU_VA_OP_UNMAP );
-        WarnOn( err, "Failed to unmap gpu va range\n" );
-
-        err = amdgpu_bo_free( mBoHandle );
-        WarnOn( err, "Failed to free amdgpu bo\n" );
-
-        mBoHandle = nullptr;
+    if ( mDeviceContext ) {
+        DRM_CALL( amdgpu_cs_ctx_free, mDeviceContext );
+        mDeviceContext = 0;
     }
 
-    if ( mVaHandle ) {
-        err = amdgpu_va_range_free( mVaHandle );
-        WarnOn( err, "Failed to free va range\n" );
+    if ( mDevice ) {
+        DRM_CALL( amdgpu_device_deinitialize, mDevice );
+        mDevice = 0;
+    }
 
-        mVaHandle = 0;
+    if ( mDrmFd >= 0 ) {
+        close( mDrmFd );
+        mDrmFd = -1;
     }
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetBo::Allocate( uint64_t sizeBytes, bool mappable, uint32_t alignment )
-{
-    int err;
-    uint64_t gpuAddr = 0;
-    amdgpu_va_handle vaHandle;
-    amdgpu_bo_handle boHandle;
-    uint64_t alignedSize = ALIGN(sizeBytes, alignment );
-    int domain = mappable ? AMDGPU_GEM_DOMAIN_GTT :AMDGPU_GEM_DOMAIN_VRAM;
-    struct amdgpu_bo_alloc_request req = {};
-
-    FailOnTo( sizeBytes == 0, error, "Invalid bo size\n" );
-
-    req.alloc_size = alignedSize;
-    req.phys_alignment = alignment;
-    req.preferred_heap = domain;
-    req.flags = 0;
-    err = amdgpu_bo_alloc( mContext->GetDevice(), &req, &boHandle );
-    FailOnTo( err, error, "Failed to allocate amdgpu bo\n" );
-
-    err = amdgpu_va_range_alloc( mContext->GetDevice(),
-                                 amdgpu_gpu_va_range_general,
-                                 alignedSize, kVaAlignment, 0,
-                                 &gpuAddr, &vaHandle, kVaAllocFlags);
-    FailOnTo( err, error, "Failed to allocate gpuAddr for bo\n" );
-
-    err = amdgpu_bo_va_op( boHandle, 0, alignedSize, gpuAddr, 0, AMDGPU_VA_OP_MAP);
-    FailOnTo( err, error, "Failed to map gpuAddr for bo\n" );
-
-    mGpuAddr = gpuAddr;
-    mSizeBytes = alignedSize;
-    mBoHandle = boHandle;
-    mVaHandle = vaHandle;
-    mMappable = mappable;
-
-    return true;
-
-error:
-    // TODO de-allocate intermediate stuff
-    return false;
-}
-
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
-bool VcetBo::Allocate( uint32_t width, uint32_t height, bool mappable )
-{
-    bool ret;
-    uint32_t alignedWidth = ALIGN( width, GetWidthAlignment() );
-    uint32_t alignedHeight = ALIGN( height, GetHeightAlignment() );
-    uint64_t nv21Size = alignedWidth * alignedHeight * kNv21Bpp;
-
-    ret = Allocate( nv21Size, mappable, kDefaultAlignment );
-    FailOnTo( !ret, error, "Failed to allocate bo by size\n" );
-
-    mWidth = width;
-    mHeight = height;
-    mAlignedWidth = alignedWidth;
-    mAlignedHeight = alignedHeight;
-
-    return true;
-
-error:
-    return false;
-}
-
-
-//---------------------------------------------------------------------------//
-//---------------------------------------------------------------------------//
-bool VcetBo::Import( int fd, bool bMappable )
-{
-    int err;
-    struct amdgpu_bo_import_result importResult = {};
-    uint64_t gpuAddr = 0;
-    amdgpu_va_handle vaHandle;
-
-    err = amdgpu_bo_import( mContext->GetDevice(),
-                            amdgpu_bo_handle_type_dma_buf_fd,
-                            fd,
-                            &importResult );
-    FailOnTo( err, error, "Failed to import fd %d\n", fd );
-
-    err = amdgpu_va_range_alloc( mContext->GetDevice(),
-                                 amdgpu_gpu_va_range_general,
-                                 importResult.alloc_size, kVaAlignment, 0,
-                                 &gpuAddr, &vaHandle, kVaAllocFlags);
-    FailOnTo( err, error, "Failed to allocate gpuAddr for import bo\n" );
-
-    err = amdgpu_bo_va_op( importResult.buf_handle, 0,
-                           importResult.alloc_size,
-                           gpuAddr, 0, AMDGPU_VA_OP_MAP);
-    FailOnTo( err, error, "Failed to map gpuAddr for bo\n" );
-
-    mGpuAddr = gpuAddr;
-    mSizeBytes = importResult.alloc_size;
-    mBoHandle = importResult.buf_handle;
-    mVaHandle = vaHandle;
-    mMappable = bMappable; // Lazy approach
-
-    return true;
-
-error:
-    // TODO de-allocate intermediate stuff
-    return false;
-}
-
-bool VcetBo::Map()
-{
-    int err;
-    uint8_t *cpuAddr = nullptr;
-
-    FailOnTo( !mBoHandle, error, "Attempted to map un-allocated BO\n" );
-    FailOnTo( !mMappable, error, "Attempted to map un-mappable BO\n" );
-    FailOnTo( mCpuAddr, error, "Attempted to map already-mapped BO\n" );
-
-    err = amdgpu_bo_cpu_map( mBoHandle, (void**) &cpuAddr);
-    FailOnTo( err, error, "Failed to cpu map bo\n" );
-
-    mCpuAddr = cpuAddr;
-
-    return true;
-
-error:
-    return false;
-}
-
-bool VcetBo::Unmap()
+int Drm::Init()
 {
     int err;
 
-    FailOnTo( !mBoHandle, error, "Attempted to unmap un-allocated BO\n" );
-    FailOnTo( !mCpuAddr, error, "Attempted to unmap unmapped BO\n" );
+    err = LoadEntrypoints();
+    FailOnTo( err, error, "Failed to load libdrm entrypoints\n" );
 
-    err = amdgpu_bo_cpu_unmap( mBoHandle );
-    FailOnTo( err, error, "Failed to unmap bo\n" );
+    mDrmFd = DRM_CALL( drmOpenWithType, "amdgpu", NULL, DRM_NODE_RENDER );
+    FailOnTo( mDrmFd < 0, error, "Failed to open amdgpu fd\n" );
 
-    mCpuAddr = nullptr;
+    err = DRM_CALL( amdgpu_device_initialize, mDrmFd, &mDevMajor, &mDevMinor, &mDevice );
+    FailOnTo( err, error, "Failed to initialize amdgpu device\n" );
 
-    return true;
+    err = DRM_CALL( amdgpu_query_gpu_info, mDevice, &mGpuInfo );
+    FailOnTo( err, error, "Failed to query gpu info\n" );
+
+    err = DRM_CALL( amdgpu_cs_ctx_create, mDevice, &mDeviceContext );
+    FailOnTo( err, error, "Failed to create device context\n" );
+
+    return 0;
 
 error:
-    return false;
+    return err;
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetBo::IsWidthAligned( VcetContext *ctx, uint32_t width )
+int Drm::LoadEntrypoints()
 {
-    uint32_t alignment = GetWidthAlignment( ctx );
-    return ( width % alignment ) == 0;
+    //TODO: Nothing to do, still using compile time link
+    return 0;
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetBo::IsHeightAligned( VcetContext *ctx, uint32_t width )
+int Drm::QueryFirmwareVersion( unsigned fw_type, unsigned ip_instance, unsigned index, uint32_t *version, uint32_t *feature )
 {
-    uint32_t alignment = GetHeightAlignment( ctx );
-    return ( width % alignment ) == 0;
+    return DRM_CALL( amdgpu_query_firmware_version, mDevice, fw_type, ip_instance, index, version, feature );
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetBo::GetWidthAlignment()
+int Drm::CsSubmit( uint64_t flags, struct amdgpu_cs_request *ibs_request, uint32_t number_of_requests)
 {
-    return GetWidthAlignment( mContext );
+    return DRM_CALL( amdgpu_cs_submit, mDeviceContext, flags, ibs_request, number_of_requests );
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetBo::GetHeightAlignment()
+int Drm::CsQueryFenceStatus( struct amdgpu_cs_fence *fence, uint64_t timeoutNs, uint64_t flags, uint32_t *expired )
 {
-    return GetHeightAlignment( mContext );
+    return DRM_CALL( amdgpu_cs_query_fence_status, fence, timeoutNs, flags, expired );
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetBo::GetWidthAlignment( VcetContext *ctx )
+int Drm::BoListCreate( uint32_t numberOfResources, amdgpu_bo_handle *resources, uint8_t *resourcePrios, amdgpu_bo_list_handle *result )
 {
-    uint32_t familyId = ctx->GetFamilyId();
-
-    switch ( familyId ) {
-    case AMDGPU_FAMILY_RV:
-    case AMDGPU_FAMILY_AI:
-        return 256;
-    case AMDGPU_FAMILY_SI:
-    case AMDGPU_FAMILY_CI:
-    case AMDGPU_FAMILY_KV:
-    case AMDGPU_FAMILY_VI:
-    case AMDGPU_FAMILY_CZ:
-        return 16;
-    default:
-        Warn( "Unknown family id: %d - default to highest alignment\n", familyId );
-        return 256;
-    }
+    return DRM_CALL( amdgpu_bo_list_create, mDevice, numberOfResources, resources, resourcePrios, result );
 }
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-uint32_t VcetBo::GetHeightAlignment( VcetContext *ctx )
+int Drm::BoListDestroy( amdgpu_bo_list_handle handle )
 {
-    uint32_t familyId = ctx->GetFamilyId();
+    return DRM_CALL( amdgpu_bo_list_destroy, handle );
+}
 
-    switch ( familyId ) {
-    case AMDGPU_FAMILY_RV:
-    case AMDGPU_FAMILY_AI:
-    case AMDGPU_FAMILY_SI:
-    case AMDGPU_FAMILY_CI:
-    case AMDGPU_FAMILY_KV:
-    case AMDGPU_FAMILY_VI:
-    case AMDGPU_FAMILY_CZ:
-        return 16;
-    default:
-        Warn( "Unknown family id: %d - default to highest alignment\n", familyId );
-        return 16;
-    }
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::BoAlloc( struct amdgpu_bo_alloc_request *alloc_buffer, amdgpu_bo_handle *buf_handle )
+{
+    return DRM_CALL( amdgpu_bo_alloc, mDevice, alloc_buffer, buf_handle );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::BoFree( amdgpu_bo_handle bo )
+{
+    return DRM_CALL( amdgpu_bo_free, bo );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::BoImport( enum amdgpu_bo_handle_type type, uint32_t sharedHandle, struct amdgpu_bo_import_result *result )
+{
+    return DRM_CALL( amdgpu_bo_import, mDevice, type, sharedHandle, result );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::VaRangeAlloc( enum amdgpu_gpu_va_range type, uint64_t size, uint64_t vaBaseAlignment, uint64_t vaBaseRequired, uint64_t *vaBaseAllocated, amdgpu_va_handle *vaRangeHandle, uint64_t flags )
+{
+    return DRM_CALL( amdgpu_va_range_alloc, mDevice, type, size, vaBaseAlignment, vaBaseRequired, vaBaseAllocated, vaRangeHandle, flags );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::VaRangeFree( amdgpu_va_handle va )
+{
+    return DRM_CALL( amdgpu_va_range_free, va );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::BoVaOp( amdgpu_bo_handle bo, uint64_t offset, uint64_t size, uint64_t addr, uint64_t flags, uint32_t ops )
+{
+    return DRM_CALL( amdgpu_bo_va_op, bo, offset, size, addr, flags, ops );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::BoCpuMap( amdgpu_bo_handle buf_handle, uint8_t **cpu )
+{
+    return DRM_CALL( amdgpu_bo_cpu_map, buf_handle, (void**)cpu );
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+int Drm::BoCpuUnmap( amdgpu_bo_handle buf_handle )
+{
+    return DRM_CALL( amdgpu_bo_cpu_unmap, buf_handle );
 }

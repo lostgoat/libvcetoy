@@ -84,11 +84,11 @@ bool VcetIb::WaitFromCompletion( uint64_t timeout )
     uint32_t expired;
     struct amdgpu_cs_fence fenceStatus = {0};
 
-    fenceStatus.context = mContext->GetDeviceContext();
+    fenceStatus.context = mContext->GetDrm()->GetContext();
     fenceStatus.ip_type = mContext->GetIpType();
     fenceStatus.fence = mSeqNo;
 
-    err = amdgpu_cs_query_fence_status( &fenceStatus, timeout, 0, &expired);
+    err = mContext->GetDrm()->CsQueryFenceStatus( &fenceStatus, timeout, 0, &expired);
     FailOnTo( err, error, "Failed to wait for ib completion\n" );
 
     return true;

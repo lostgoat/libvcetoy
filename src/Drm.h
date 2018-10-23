@@ -26,92 +26,124 @@
 #pragma once
 
 #include <libdrm/amdgpu.h>
+#include <drm/amdgpu_drm.h>
 
-#include <memory>
+class VcetIb;
 
-class VcetContext;
-
-class VcetBo
+class Drm
 {
-    private:
-        static const int kDefaultAlignment = 4096;
-        static const int kVaAlignment = 4096;
-        static const uint64_t kVaAllocFlags = 0;
-
     public:
-        static constexpr float kNv21Bpp = 1.5;
-        static uint32_t GetWidthAlignment( VcetContext *ctx );
-        static uint32_t GetHeightAlignment( VcetContext *ctx );
-        static bool IsWidthAligned( VcetContext *ctx, uint32_t width );
-        static bool IsHeightAligned( VcetContext *ctx, uint32_t width );
-
-    public:
-
-        VcetBo( VcetContext *pContext );
-        ~VcetBo();
+        Drm();
+        ~Drm();
 
         /**
-         * Allocate sizeBytes of GPU addressable memory
-         *
-         * If mappable is set, then the memory will be CPU visible as well.
+         * Load libdrm and initialize the local context
          */
-        bool Allocate( uint64_t sizeBytes, bool mappable, uint32_t alignment = kDefaultAlignment );
+        int Init();
 
         /**
-         * Allocate an NV21 image of dimensions width x height
-         *
-         * If mappable is set, then the memory will be CPU visible as well.
+         * Returns true if this version of libdrm supports motion estimation
          */
-        bool Allocate( uint32_t width, uint32_t height, bool mappable );
+        int QueryFirmwareVersion( unsigned fw_type,
+                                  unsigned ip_instance,
+                                  unsigned index,
+                                  uint32_t *version,
+                                  uint32_t *feature );
 
         /**
-         * Import a BO from a dma buf fd
-         *
-         * Caller must specify whether the buffer was allocated with mappable properties
+         * Submit
          */
-        bool Import( int fd, bool bMappable );
+        int CsSubmit( uint64_t flags,
+                       struct amdgpu_cs_request *ibs_request,
+                       uint32_t number_of_requests);
 
         /**
-         * Map the BO for cpu usage
-         *
-         * Bo must've been allocated as mappable, otherwise an error will be produced
+         * Query fence status
          */
-        bool Map();
+        int CsQueryFenceStatus(struct amdgpu_cs_fence *fence,
+                                uint64_t timeout_ns,
+                                uint64_t flags,
+                                uint32_t *expired);
+        /**
+         * Create a BO list
+         */
+        int BoListCreate( uint32_t numberOfResources,
+                           amdgpu_bo_handle *resources,
+                           uint8_t *resourcePrios,
+                           amdgpu_bo_list_handle *result);
 
         /**
-         * Release the BO's cpu mapping
+         * Destroy a BO list
          */
-        bool Unmap();
+        int BoListDestroy( amdgpu_bo_list_handle handle );
+
+
+        /**
+         * Allocate a BO
+         */
+        int BoAlloc( struct amdgpu_bo_alloc_request *alloc_buffer, amdgpu_bo_handle *buf_handle );
+
+        /**
+         * Free a Bo
+         */
+        int BoFree( amdgpu_bo_handle bo );
+
+        /**
+         * Import a BO
+         */
+        int BoImport( enum amdgpu_bo_handle_type type,
+                      uint32_t sharedHandle,
+                      struct amdgpu_bo_import_result *result );
+        /**
+         * Allocate a VA range
+         */
+        int VaRangeAlloc( enum amdgpu_gpu_va_range type,
+                          uint64_t size,
+                          uint64_t vaBaseAlignment,
+                          uint64_t vaBaseRequired,
+                          uint64_t *vaBaseAllocated,
+                          amdgpu_va_handle *vaRangeHandle,
+                          uint64_t flags );
+
+        /**
+         * Free a VA range
+         */
+        int VaRangeFree( amdgpu_va_handle va );
+
+        /**
+         * Perform a VA operation
+         */
+        int BoVaOp( amdgpu_bo_handle bo,
+                     uint64_t offset,
+                     uint64_t size,
+                     uint64_t addr,
+                     uint64_t flags,
+                     uint32_t ops );
+
+        /**
+         * Map a BO
+         */
+        int BoCpuMap( amdgpu_bo_handle buf_handle, uint8_t **cpu );
+
+        /**
+         * Unmap a BO
+         */
+        int BoCpuUnmap( amdgpu_bo_handle buf_handle );
 
         /**
          * Getters/Setters
          */
-        uint8_t*    GetCpuAddr()        { return mCpuAddr; }
-        uint64_t    GetGpuAddr()        { return mGpuAddr; }
-        amdgpu_bo_handle GetBoHandle()  { return mBoHandle; }
-        uint64_t    GetSizeBytes()      { return mSizeBytes; }
-        uint32_t    GetWidth()          { return mWidth; }
-        uint32_t    GetHeight()         { return mHeight; }
-        uint32_t    GetAlignedWidth()   { return mAlignedWidth; }
-        uint32_t    GetAlignedHeight()  { return mAlignedHeight; }
+        struct amdgpu_gpu_info *GetGpuInfo() { return &mGpuInfo; }
+        amdgpu_context_handle GetContext() { return mDeviceContext; }
 
     private:
-        uint32_t GetWidthAlignment();
-        uint32_t GetHeightAlignment();
+        int LoadEntrypoints();
 
-        VcetContext *mContext;
+        int mDrmFd;
+        amdgpu_device_handle mDevice;
+        amdgpu_context_handle mDeviceContext;
 
-        bool mMappable;
-
-        uint64_t mSizeBytes;
-        uint32_t mWidth;
-        uint32_t mHeight;
-        uint32_t mAlignedWidth;
-        uint32_t mAlignedHeight;
-
-        amdgpu_bo_handle mBoHandle;
-        amdgpu_va_handle mVaHandle;
-
-        uint64_t mGpuAddr;
-        uint8_t *mCpuAddr;
+        uint32_t mDevMajor;
+        uint32_t mDevMinor;
+        struct amdgpu_gpu_info mGpuInfo;
 };

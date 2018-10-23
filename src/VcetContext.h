@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include <libdrm/amdgpu.h>
+#include "Drm.h"
 
 class VcetIb;
 class VcetBo;
@@ -48,16 +48,15 @@ class VcetContext
 
         bool CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height );
 
-        amdgpu_device_handle GetDevice() { return mDevice; }
-        amdgpu_context_handle GetDeviceContext() { return mDeviceContext; }
-
         uint32_t GetIpType();
         uint32_t GetFamilyId();
         uint32_t GetSessionId() { return mSesionId; }
 
-        VcetBo *GetFb() { return mBoFb; };
-        VcetBo *GetBs() { return mBoBs; };
-        VcetBo *GetCpb() { return mBoCpb; };
+        VcetBo *GetFb() { return mBoFb; }
+        VcetBo *GetBs() { return mBoBs; }
+        VcetBo *GetCpb() { return mBoCpb; }
+
+        Drm *GetDrm() { return &mDrm; }
 
     private:
         int AllocateResources();
@@ -72,11 +71,7 @@ class VcetContext
         VcetIb *GetNextIb();
         bool Submit( VcetIb *ib );
 
-        int mDrmFd;
-        struct amdgpu_gpu_info mGpuInfo;
-        amdgpu_device_handle mDevice;
-        amdgpu_context_handle mDeviceContext;
-
+        Drm mDrm;
 
         uint32_t mSesionId;
         uint32_t mWidth;
