@@ -138,6 +138,28 @@ error:
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
+bool VcetIsSystemSupported()
+{
+    bool ret;
+    std::shared_ptr<VcetContext> ctx = nullptr;
+
+    ctx = std::make_shared<VcetContext>();
+    FailOnTo( !ctx, error, "Failed to create context: out of memory\n" );
+
+    ret = ctx->MinimalInit();
+    FailOnToQ( !ret, error );
+
+    ret = ctx->IsMvDumpSupported();
+    FailOnToQ( !ret, error );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
 bool VcetContextCreate( VcetCtxHandle *pCtx, uint32_t maxWidth, uint32_t maxHeight )
 {
     bool ret;

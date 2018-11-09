@@ -113,6 +113,16 @@ class FailureException : public std::exception
     } while (0)
 
 /**
+ * Quietly jump on error to a label
+ */
+#define FailOnToQ( condition, label )                          \
+    do {                                                       \
+        if (condition) {                                       \
+            goto label;                                        \
+        }                                                      \
+    } while (0)
+
+/**
  * Because the C pre-processor is awesome
  */
 #define CONCATENATE_IMPL(s1, s2) s1##s2
@@ -138,7 +148,7 @@ std::unique_ptr<T> make_unique(Args&&... args)
 #define ALIGN(value, alignment) (((value) + alignment - 1) & ~(alignment - 1))
 
 /**
- * Clam value to max
+ * Clamp value to max
  */
 #define CLAMP(value, min, max) ((value < min) ? min : ((value > max) ? max : value))
 

@@ -56,6 +56,11 @@ struct VcetJobProxy;
 typedef VcetJobProxy* VcetJobHandle;
 
 /**
+ * Check if the current system supports the libvcetoy features
+ */
+bool VcetIsSystemSupported();
+
+/**
  * Create a libvcetoy context
  *
  * @param pCtx      On success, populated with the libvcetoy context handle

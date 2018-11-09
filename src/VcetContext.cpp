@@ -61,6 +61,7 @@ VcetContext::VcetContext()
     , mBoBs( nullptr )
     , mBoCpb( nullptr )
     , mIbIdx( 0 )
+    , mSessionCreated( false )
 {
     memset( mIbs, 0, sizeof(mIbs) );
 }
@@ -86,6 +87,19 @@ VcetContext::~VcetContext()
     for ( int i = 0; i < kNumIbs; ++i ) {
         delete mIbs[i];
     }
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetContext::MinimalInit()
+{
+    int err;
+
+    err = mDrm.Init();
+    if ( err )
+        return false;
+
+    return true;
 }
 
 //---------------------------------------------------------------------------//
@@ -125,6 +139,10 @@ bool VcetContext::IsMvDumpSupported()
     uint32_t chipId = mDrm.GetGpuInfo()->chip_external_rev;
     uint32_t chipRev = mDrm.GetGpuInfo()->chip_rev;
     uint32_t familyId = mDrm.GetGpuInfo()->family_id;
+
+    // Make sure our drm interface is initialized
+    err = mDrm.Init();
+    FailOnTo( err, error, "Failed to init libdrm interface\n" );
 
     // Latest supported gpu
     if ( familyId >= AMDGPU_FAMILY_RV )
@@ -216,6 +234,8 @@ int VcetContext::CreateSession()
     ret = Submit( ib );
     FailOnTo( !ret, error, "Failed to submit create session ib\n" );
 
+    mSessionCreated = true;
+
     return 0;
 
 error:
@@ -228,6 +248,9 @@ int VcetContext::DestroySession()
 {
     bool ret;
     VcetIb *ib = nullptr;
+
+    if ( !mSessionCreated )
+        return 0;
 
     ib = GetNextIb();
     FailOnTo( !ib, error, "Invalid ib\n" );

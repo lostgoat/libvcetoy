@@ -58,6 +58,8 @@ class VcetTest : public ::testing::Test
             mTinyImage = nullptr;
             mJob = nullptr;
 
+            ASSERT_TRUE( VcetIsSystemSupported() );
+
             ASSERT_TRUE( VcetContextCreate( &mCtx, GetWidth(), GetHeight() ) );
             ASSERT_NE( mCtx, nullptr );
 

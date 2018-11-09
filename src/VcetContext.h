@@ -45,6 +45,8 @@ class VcetContext
         ~VcetContext();
 
         bool Init( uint32_t width, uint32_t height );
+
+        bool MinimalInit();
         bool IsMvDumpSupported();
 
         bool CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height, VcetJob *pJob );
@@ -86,4 +88,6 @@ class VcetContext
 
         uint32_t mIbIdx;
         VcetIb *mIbs[ kNumIbs ];
+
+        bool mSessionCreated;
 };
