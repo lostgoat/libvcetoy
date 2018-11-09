@@ -32,6 +32,12 @@ extern "C" {
 #endif
 
 /**
+ * For operations that take a timeout parameter, passing in this
+ * constant will result in an infinite wait
+ */
+#define VCETOY_TIMEOUT_INFINITE             0xffffffffffffffffull
+
+/**
  * This handle represents a libvcetoy context instance
  */
 struct VcetCtxProxy;
@@ -42,6 +48,12 @@ typedef VcetCtxProxy* VcetCtxHandle;
  */
 struct VcetBoProxy;
 typedef VcetBoProxy* VcetBoHandle;
+
+/**
+ * This handle represents a libvcetoy job
+ */
+struct VcetJobProxy;
+typedef VcetJobProxy* VcetJobHandle;
 
 /**
  * Create a libvcetoy context
@@ -111,6 +123,8 @@ bool VcetBoCreateImage( VcetCtxHandle ctx, uint32_t width, uint32_t height, bool
  * @param mappable          Specify whether the memory referenced by fd is mappable
  * @param pBo               On success, populated with the bo handle
  *
+ * Note: on success, libvcetoy takes ownership of fd
+ *
  * @return true on success, false otherwise
  */
 bool VcetBoImport( VcetCtxHandle ctx, int fd, bool mappable, VcetBoHandle *pBo );
@@ -150,10 +164,39 @@ bool VcetBoUnmap( VcetBoHandle bo );
  * @param _mvBo     The buffer in which to dump the motion vector data
  * @param width     The frame's width dimension
  * @param height    The frame's height dimension
+ * @param _job      On success, associate the gpu work with _job
  *
  * @return true on success, false otherwise
  */
-bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height );
+bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height, VcetJobHandle _job );
+
+/**
+ * Create a VcetJob object
+ *
+ * @param _ctx       The vcet context
+ * @param pJob       On success, populated with the job handle
+ *
+ * @return true on success, false otherwise
+ */
+bool VcetJobCreate( VcetCtxHandle _ctx, VcetJobHandle *pJob );
+
+/**
+ * Destroys a libvcetoy job object
+ *
+ * @param pJob   Pointer to the bo to destroy
+ */
+void VcetJobDestroy( VcetJobHandle *pJob );
+
+/**
+ * Wait for a job to complete with a CPU wait
+ *
+ * @param _ctx       The vcet context
+ * @param _job       The job to wait for
+ * @param timeout_ns Timeout value for the wait operation in nanoseconds
+ *
+ * @return true on success, false otherwise
+ */
+bool VcetJobWait( VcetCtxHandle _ctx, VcetJobHandle _job, uint64_t timeout_ns );
 
 #ifdef __cplusplus
 }

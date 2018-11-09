@@ -32,6 +32,7 @@
 
 #include "VcetContext.h"
 #include "VcetBo.h"
+#include "VcetJob.h"
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
@@ -99,6 +100,40 @@ error:
 
 #define VCET_BO_B( name, hnd )                          \
     VcetBo *name = VcetBoFromHandle( hnd );             \
+    if (!name) return false;
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+struct VcetJobProxy {
+    std::shared_ptr<VcetJob> mPtr;
+
+    VcetJobProxy( std::shared_ptr<VcetJob> job )
+        : mPtr(job)
+    {}
+};
+
+static inline VcetJob* VcetJobFromHandle( VcetJobHandle hnd )
+{
+    VcetJob *job = nullptr;
+    VcetJobProxy* proxy = reinterpret_cast<VcetJobProxy*>(hnd);
+
+    FailOnTo( !proxy, error, "Invalid job handle\n" );
+
+    job = proxy->mPtr.get();
+    FailOnTo( !job, error, "Invalid job\n" );
+
+    return job;
+
+error:
+    return nullptr;
+}
+
+#define VCET_JOB_V( name, hnd )                          \
+    VcetJob *name = VcetJobFromHandle( hnd );            \
+    if (!name) return;
+
+#define VCET_JOB_B( name, hnd )                          \
+    VcetJob *name = VcetJobFromHandle( hnd );            \
     if (!name) return false;
 
 //---------------------------------------------------------------------------//
@@ -284,7 +319,7 @@ error:
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height )
+bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _newFrame, VcetBoHandle _mvBo, uint32_t width, uint32_t height, VcetJobHandle _job )
 {
     bool ret;
 
@@ -292,12 +327,66 @@ bool VcetCalculateMv( VcetCtxHandle _ctx, VcetBoHandle _oldFrame, VcetBoHandle _
     VCET_BO_B( oldFrame, _oldFrame );
     VCET_BO_B( newFrame, _newFrame );
     VCET_BO_B( mvBo, _mvBo );
+    VCET_JOB_B( job, _job );
 
     FailOnTo( !ctx , error, "Failed to calculate mv: bad parameter\n" );
 
-    ret = ctx->CalculateMv( oldFrame, newFrame, mvBo, width, height );
+    ret = ctx->CalculateMv( oldFrame, newFrame, mvBo, width, height, job );
     FailOnTo( !ret, error, "Failed to calculate mv: processing failure\n" );
-    
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetJobCreate( VcetCtxHandle _ctx, VcetJobHandle *pJob )
+{
+    bool ret;
+    std::shared_ptr<VcetJob> job = nullptr;
+    VCET_CTX_B( ctx, _ctx );
+
+    FailOnTo( !pJob, error, "Failed to create job: bad parameter\n" );
+
+    job = std::make_shared<VcetJob>( ctx );
+    FailOnTo( !job, error, "Failed to create job: out of memory\n" );
+
+    ret = job->Init();
+    FailOnTo( !ret, error, "Failed to create job: init failed\n" );
+
+    *pJob = new VcetJobProxy(std::move(job));
+    FailOnTo( !*pJob, error, "Failed to create job: failed to allocate handle\n" );
+
+    return true;
+
+error:
+    return false;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+void VcetJobDestroy( VcetJobHandle *pJob )
+{
+    if ( !pJob )
+        return;
+
+    delete *pJob;
+    *pJob = nullptr;
+}
+
+//---------------------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+bool VcetJobWait( VcetCtxHandle _ctx, VcetJobHandle _job, uint64_t timeout_ns )
+{
+    bool ret;
+    VCET_CTX_B( ctx, _ctx );
+    VCET_JOB_B( job, _job );
+
+    ret = job->WaitForCompletion( timeout_ns );
+    FailOnTo( !ret, error, "Failed to wait for job completion: wait failed.\n" );
+
     return true;
 
 error:

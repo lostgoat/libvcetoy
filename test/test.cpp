@@ -56,6 +56,7 @@ class VcetTest : public ::testing::Test
             mMappableBo = nullptr;
             mUnmappableBo = nullptr;
             mTinyImage = nullptr;
+            mJob = nullptr;
 
             ASSERT_TRUE( VcetContextCreate( &mCtx, GetWidth(), GetHeight() ) );
             ASSERT_NE( mCtx, nullptr );
@@ -66,10 +67,16 @@ class VcetTest : public ::testing::Test
             ASSERT_TRUE( VcetBoAlignDimensions( mCtx, 1, 1, &mWidthAlignment, &mHeightAlignment ) );
             ASSERT_NE( mMappableBo, nullptr );
             ASSERT_NE( mUnmappableBo, nullptr );
+
+            ASSERT_TRUE( VcetJobCreate( mCtx, &mJob ) );
+            ASSERT_NE( mJob, nullptr );
         }
 
         virtual void TearDown()
         {
+            VcetJobDestroy( &mJob );
+            ASSERT_EQ( mJob, nullptr );
+
             VcetBoDestroy( &mTinyImage );
             ASSERT_EQ( mTinyImage, nullptr );
 
@@ -97,6 +104,7 @@ class VcetTest : public ::testing::Test
         VcetBoHandle mMappableBo;
         VcetBoHandle mUnmappableBo;
         VcetBoHandle mTinyImage;
+        VcetJobHandle mJob;
 
         uint32_t mBoSize;
         uint32_t mWidthAlignment;
@@ -260,7 +268,9 @@ TEST_F(VcetTestFrames, CalculateMv )
 
     ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
                                   mMappableBo,
-                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight,
+                                  mJob ));
+    ASSERT_TRUE( VcetJobWait( mCtx, mJob, VCETOY_TIMEOUT_INFINITE ) );
     DumpDataToFile( mvData, mBoSize, "mv01", MAX_WIDTH, MAX_HEIGHT );
 
     uint64_t sum = 0;
@@ -281,7 +291,9 @@ TEST_F(VcetTestFrames, CalculateMvNoMovement )
     // Two equal frames should produce a zero motion vector
     ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[3]->mBo,
                                   mMappableBo,
-                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight,
+                                  mJob ));
+    ASSERT_TRUE( VcetJobWait( mCtx, mJob, VCETOY_TIMEOUT_INFINITE ) );
 
     uint64_t sum = 0;
     for ( uint32_t i = 0; i < mBoSize; ++i ) {
@@ -296,7 +308,9 @@ TEST_F(VcetTestFrames, MultipleSubmissions )
     for ( int i = 0; i < 20; i++ ) {
         ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo,
                                       mMappableBo,
-                                      mFrame[0]->mWidth, mFrame[0]->mHeight ));
+                                      mFrame[0]->mWidth, mFrame[0]->mHeight,
+                                      mJob ));
+        ASSERT_TRUE( VcetJobWait( mCtx, mJob, VCETOY_TIMEOUT_INFINITE ) );
     }
 }
 
@@ -547,6 +561,7 @@ class InteropFrames : public ::testing::Test
         virtual void SetUp()
         {
             mCtx = nullptr;
+            mJob = nullptr;
             mMvBuffer = nullptr;
             mMvData = nullptr;
             mWidthAlignment = 0;
@@ -559,6 +574,9 @@ class InteropFrames : public ::testing::Test
 
             ASSERT_TRUE( VcetContextCreate( &mCtx, GetWidth(), GetHeight() ) );
             ASSERT_NE( mCtx, nullptr );
+
+            ASSERT_TRUE( VcetJobCreate( mCtx, &mJob ) );
+            ASSERT_NE( mJob, nullptr );
 
             ASSERT_EQ( mMiniVk.Init(), 0 );
 
@@ -590,9 +608,15 @@ class InteropFrames : public ::testing::Test
 
         virtual void TearDown()
         {
+            VcetJobDestroy( &mJob );
+            ASSERT_EQ( mJob, nullptr );
+
             for ( int i = 0; i < kFrameMax; ++i ) {
                 delete mFrame[i];
             }
+
+            VcetContextDestroy( &mCtx );
+            ASSERT_EQ( mCtx, nullptr );
         }
 
         virtual uint32_t GetWidth()
@@ -624,6 +648,7 @@ class InteropFrames : public ::testing::Test
 
         MiniVk mMiniVk;
         VcetCtxHandle mCtx;
+        VcetJobHandle mJob;
 
         uint32_t mWidth, mHeight;
         uint32_t mWidthAlignment;
@@ -645,7 +670,8 @@ TEST_F( InteropFrames, CalculateMv )
 {
 
     ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo, mMvBo,
-                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight, mJob ));
+    ASSERT_TRUE( VcetJobWait( mCtx, mJob, VCETOY_TIMEOUT_INFINITE ) );
     ASSERT_EQ( true, IsMovementDetected() );
 
     DumpDataToFile( mMvData, mMvDataSize, "interop-mv01", MAX_WIDTH, MAX_HEIGHT );
@@ -656,7 +682,8 @@ TEST_F( InteropFrames, CalculateMvNoMovement )
 {
     // Two equal frames should produce a zero motion vector
     ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[3]->mBo, mMvBo,
-                                  mFrame[0]->mWidth, mFrame[0]->mHeight ));
+                                  mFrame[0]->mWidth, mFrame[0]->mHeight, mJob ));
+    ASSERT_TRUE( VcetJobWait( mCtx, mJob, VCETOY_TIMEOUT_INFINITE ) );
     ASSERT_EQ( false, IsMovementDetected() );
 }
 
@@ -664,7 +691,8 @@ TEST_F( InteropFrames, MultipleSubmissions )
 {
     for ( int i = 0; i < 20; i++ ) {
         ASSERT_TRUE( VcetCalculateMv( mCtx, mFrame[0]->mBo, mFrame[1]->mBo, mMvBo,
-                                      mFrame[0]->mWidth, mFrame[0]->mHeight ));
+                                      mFrame[0]->mWidth, mFrame[0]->mHeight, mJob ));
+        ASSERT_TRUE( VcetJobWait( mCtx, mJob, VCETOY_TIMEOUT_INFINITE ) );
         ASSERT_EQ( true, IsMovementDetected() );
     }
 }

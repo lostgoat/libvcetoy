@@ -32,6 +32,7 @@
 #include "Drm.h"
 #include "VcetIb.h"
 #include "VcetBo.h"
+#include "VcetJob.h"
 
 #include "VcetContext.h"
 
@@ -282,7 +283,7 @@ uint32_t VcetContext::GetFamilyId()
 
 //---------------------------------------------------------------------------//
 //---------------------------------------------------------------------------//
-bool VcetContext::CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height )
+bool VcetContext::CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height, VcetJob *pJob )
 {
     bool ret;
     VcetIb *ib = nullptr;
@@ -298,6 +299,11 @@ bool VcetContext::CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo,
 
     ret = Submit( ib );
     FailOnTo( !ret, error, "Failed to submit ib\n" );
+
+    if ( pJob )
+    {
+        pJob->SetSeqNo( ib->GetSeqNo() );
+    }
 
     return true;
 

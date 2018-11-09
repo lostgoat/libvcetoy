@@ -31,13 +31,14 @@
 
 class VcetIb;
 class VcetBo;
+class VcetJob;
 
 class VcetContext
 {
     private:
         static constexpr int kNumCpbBuffers = 10;
         static constexpr int kNumIbs = 8;
-        static constexpr bool kForceSubmitSync = true;
+        static constexpr bool kForceSubmitSync = false;
 
     public:
         VcetContext( );
@@ -46,7 +47,7 @@ class VcetContext
         bool Init( uint32_t width, uint32_t height );
         bool IsMvDumpSupported();
 
-        bool CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height );
+        bool CalculateMv( VcetBo *oldFrame, VcetBo *newFrame, VcetBo *mvBo, uint32_t width, uint32_t height, VcetJob *pJob );
 
         uint32_t GetIpType();
         uint32_t GetFamilyId();
